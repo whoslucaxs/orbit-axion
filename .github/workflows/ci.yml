@@ -18,11 +18,11 @@ jobs:
       - run: cargo test --locked --workspace --all-targets
       - run: cargo build --locked --release -p orbit-axion --bins
       - run: python packaging/windows-msi/collect_notices.py
-      - run: python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.0-x64.msi 0.2.0
+      - run: python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.1-x64.msi 0.2.1
       - uses: actions/upload-artifact@v4
         with:
           name: OrbitAxion-windows-x64
           path: |
-            dist/OrbitAxion-0.2.0-x64.msi
+            dist/OrbitAxion-0.2.1-x64.msi
             dist/THIRD_PARTY_NOTICES.txt
             target/release/orbit-axion.exe

@@ -10,6 +10,7 @@ pub struct Settings {
     pub distance: f64,
     pub size: f32,
     pub opacity: f32,
+    pub background_color: String,
     pub theme: String,
     pub language: String,
     pub startup: bool,
@@ -30,6 +31,7 @@ impl Default for Settings {
             distance: 48.0,
             size: 360.0,
             opacity: 0.92,
+            background_color: String::new(),
             theme: "system".into(),
             language: "pt-BR".into(),
             startup: false,
@@ -302,14 +304,19 @@ impl Config {
         if !valid_color(&s.accent) {
             return Err("Cor de destaque inválida: use #RRGGBB".into());
         }
-        if s.mouse_button > 2
+        if !s.background_color.is_empty() && !valid_color(&s.background_color) {
+            return Err(
+                "Cor do fundo inválida: use #RRGGBB ou deixe vazio para seguir o tema".into(),
+            );
+        }
+        if s.mouse_button > 4
             || !(50..=2000).contains(&s.hold_ms)
             || !s.distance.is_finite()
             || !(10.0..=200.0).contains(&s.distance)
             || !s.size.is_finite()
             || !(280.0..=640.0).contains(&s.size)
             || !s.opacity.is_finite()
-            || !(0.3..=1.0).contains(&s.opacity)
+            || !(0.0..=1.0).contains(&s.opacity)
         {
             return Err("Parâmetros de interação inválidos".into());
         }
@@ -472,6 +479,29 @@ mod tests {
             .unwrap();
         assert_eq!(c.profile_for("unknown.exe").id, "global");
         assert!(!c.search(&c.profiles[0], "vlw").is_empty());
+    }
+    #[test]
+    fn accepts_mouse_buttons_and_custom_background_with_legacy_defaults() {
+        let mut c = Config::default();
+        for button in 0..5 {
+            c.settings.mouse_button = button;
+            c.settings.background_color = "#464545".into();
+            c.settings.opacity = 0.0;
+            c.validate().unwrap();
+        }
+        c.settings.mouse_button = 5;
+        assert!(c.validate().is_err());
+        c.settings.mouse_button = 0;
+        c.settings.background_color = "invalid".into();
+        assert!(c.validate().is_err());
+        let mut legacy = serde_json::to_value(Config::default()).unwrap();
+        legacy["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("background_color");
+        let loaded: Config = serde_json::from_value(legacy).unwrap();
+        assert!(loaded.settings.background_color.is_empty());
+        loaded.validate().unwrap();
     }
     #[test]
     fn rejects_cycles_and_invalid_audio() {

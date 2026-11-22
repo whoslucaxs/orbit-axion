@@ -12,7 +12,7 @@ fn main() {
         Ok(p) => println!("cursor: {p:?}; escala: {:?}", scale_at(p)),
         Err(e) => println!("cursor indisponível: {e}"),
     }
-    for button in 0..=2 {
+    for button in 0..=4 {
         match Hooks::start(button, false) {
             Ok((hooks, _)) => {
                 drop(hooks);

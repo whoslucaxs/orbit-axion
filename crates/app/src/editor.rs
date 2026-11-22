@@ -31,6 +31,7 @@ pub fn refresh(ui: &Editor, s: &mut State) {
     ui.set_hold_ms(settings.hold_ms as i32);
     ui.set_distance(settings.distance as f32);
     ui.set_glass_strength(settings.opacity * 100.0);
+    ui.set_background_hex(settings.background_color.clone().into());
     ui.set_theme(match settings.theme.as_str() {
         "dark" => 1,
         "light" => 2,
@@ -635,6 +636,9 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             close(s, &r);
         }
     });
+    bind!(on_preview_background, |u, _s, r| {
+        preview_background(&u, &r);
+    });
     bind!(on_save_settings, |u, s, r| {
         let old = s.config.settings.clone();
         {
@@ -644,6 +648,7 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             settings.hold_ms = u.get_hold_ms() as u64;
             settings.distance = u.get_distance() as f64;
             settings.opacity = u.get_glass_strength() / 100.0;
+            settings.background_color = u.get_background_hex().trim().to_string();
             settings.theme = match u.get_theme() {
                 1 => "dark",
                 2 => "light",
@@ -686,7 +691,9 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             }
             if let Some(session) = s.session.as_ref() {
                 session.hooks.shared.learn_button();
-                u.set_status("Pressione Meio, Mouse 4 ou Mouse 5 nos próximos 10 segundos.".into());
+                u.set_status(
+                    "Pressione o botão desejado do mouse nos próximos 10 segundos.".into(),
+                );
             }
         }
     });

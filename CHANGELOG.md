@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 — abertura e aparência — 2026-11-22
+
+- Overlay identificado durante a construção, antes de o Slint atribuir seu título; aplica abertura sem ativação corretamente.
+- Tempo de clique medido pelos instantes dos eventos, independente de atrasos da interface.
+- Removida a fila assíncrona de eventos antigos de foreground; estado atual é verificado a cada frame do anel.
+- Ativação por cinco botões padrão, incluindo esquerdo/direito; cliques de configuração permanecem livres no editor.
+- Cor HEX do fundo e opacidade de 0 a 100%, com prévia e persistência compatível com configurações anteriores.
+- Teste do controlador em janela real para evitar regressão do anel que pisca.
+
 ## 0.2.0 — aplicativo e editor — 2026-11-22
 
 - Editor de ações, perfis automáticos/manuais, submenus e macros.

@@ -4,11 +4,11 @@ Menu radial para Windows 11 x64 em Rust + Slint, independente de periféricos Lo
 
 O binário MSVC requer o Microsoft Visual C++ Runtime x64 (VCRUNTIME140.dll); o MSI atual não instala esse pré-requisito.
 
-## Versão 0.2.0
+## Versão 0.2.1
 
-Editor de oito posições, submenus, perfis por caminho de executável com prioridade e herança do Global, modo manual, busca fuzzy, macros canceláveis, atalhos, texto Unicode, abertura de programas/scripts, mídia e comandos de janela/sistema. O anel abre somente por Meio, Mouse 4 ou Mouse 5; funciona por clique ou segurar/soltar, sem tomar o foco. Fechar o editor mantém o app na bandeja; use Sair na bandeja para encerrar.
+Editor de oito posições, submenus, perfis por caminho de executável com prioridade e herança do Global, modo manual, busca fuzzy, macros canceláveis, atalhos, texto Unicode, abertura de programas/scripts, mídia e comandos de janela/sistema. O anel abre somente por Meio, Mouse 4, Mouse 5, Esquerdo ou Direito; funciona por clique ou segurar/soltar, sem tomar o foco. Fechar o editor mantém o app na bandeja; use Sair na bandeja para encerrar.
 
-Tema claro/escuro seguindo o sistema, paleta Inked (#000000, #DFDEDC, #A6A7A2, #464545, #00ACAC), superfícies translúcidas e brilho discreto. Tamanho, opacidade, cor de destaque, ícones, sons e idioma português/inglês configuráveis.
+Tema claro/escuro seguindo o sistema, paleta Inked (#000000, #DFDEDC, #A6A7A2, #464545, #00ACAC), superfícies translúcidas e brilho discreto. Tamanho, opacidade do fundo (0–100%), cor de fundo HEX, cor de destaque, ícones, sons e idioma português/inglês configuráveis. Cor de fundo vazia segue o tema; a prévia afeta o painel e o anel. Esquerdo/direito continuam livres dentro do editor para permitir configuração. Botões extras do fabricante precisam ser mapeados pelo driver para um botão padrão reconhecido pelo Windows.
 
 Áudio Windows por saída padrão ou endpoint específico; Voicemeeter Potato com oito strips e cinco buses. A roda ajusta somente sobre o ícone de volume; soltar após rolar não executa outra ação. Provedor indisponível mostra erro, sem trocar silenciosamente para outro. Potato deve estar instalado e aberto: a DLL proprietária não é distribuída.
 
@@ -37,13 +37,13 @@ cargo run --locked -p orbit-axion --bin orbit-axion -- --smoke-test
 cargo run --locked -p orbit-axion --bin orbit-axion -- --ui-test
 ```
 
-`orbit-probe` testa instalação/remoção de hooks sem interceptar e lê os provedores de áudio. `--smoke-test` verifica overlay real, foco, estilos e geometria; `--ui-test` verifica persistência dos valores ao criar a página de preferências. Ambos usam armazenamento isolado em target. Veja [docs/TEST_PLAN.md](docs/TEST_PLAN.md) para verificações de hardware ainda necessárias.
+`orbit-probe` testa instalação/remoção de hooks sem interceptar e lê os provedores de áudio. `--smoke-test` verifica overlay real, foco, estilos e geometria; `--ui-test` verifica persistência dos valores ao criar a página de preferências e, na compilação debug, exercita o controlador com cinco botões, cliques atrasados e modo clique/segurar entre eventos reais da interface, sem instalar hooks nem injetar entrada. Ambos usam armazenamento isolado em target. Veja [docs/TEST_PLAN.md](docs/TEST_PLAN.md) para verificações de hardware ainda necessárias.
 
 ## Instalador e atualizações
 
 ```powershell
 python packaging/windows-msi/collect_notices.py
-python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.0-x64.msi 0.2.0
+python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.1-x64.msi 0.2.1
 ```
 
 Empacotamento nativo MSI requer Python 3.9–3.12 no Windows (`msilib`). Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build extrai o CAB e compara os hashes dos arquivos incorporados; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.

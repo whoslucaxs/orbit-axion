@@ -4,6 +4,8 @@ mod editor;
 mod executor;
 mod feedback;
 mod icons;
+#[cfg(debug_assertions)]
+mod interaction_test;
 mod smoke;
 mod storage;
 mod supervision;
@@ -20,7 +22,7 @@ use slint::{
     },
 };
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     rc::Rc,
     sync::{Arc, atomic::Ordering, mpsc::Receiver},
     time::{Duration, Instant},
@@ -82,6 +84,18 @@ fn color(value: &str) -> slint::Color {
     u32::from_str_radix(value.trim_start_matches('#'), 16)
         .map(|v| slint::Color::from_rgb_u8((v >> 16) as u8, (v >> 8) as u8, v as u8))
         .unwrap_or_default()
+}
+fn preview_background(ui: &Editor, ring: &Ring) {
+    let value = ui.get_background_hex().trim().to_string();
+    if value.is_empty() || valid_color(&value) {
+        for ink in [ui.global::<Ink>(), ring.global::<Ink>()] {
+            ink.set_custom_background(!value.is_empty());
+            if !value.is_empty() {
+                ink.set_background_color(color(&value));
+            }
+        }
+    }
+    ring.set_glass_opacity(ui.get_glass_strength() / 100.0);
 }
 fn glyph(name: &str) -> &'static str {
     match name {
@@ -263,10 +277,8 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
     let Some(s) = state.session.as_mut() else {
         return;
     };
-    if !matches!(
-        event,
-        Input::Press { .. } | Input::Learned(_) | Input::ForegroundChanged
-    ) && !s.hooks.shared.active.load(Ordering::Acquire)
+    if !matches!(event, Input::Press { .. } | Input::Learned(_))
+        && !s.hooks.shared.active.load(Ordering::Acquire)
     {
         return;
     }
@@ -280,7 +292,9 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
                 return;
             }
             if s.hooks.shared.active.load(Ordering::Acquire) {
-                if state.config.settings.hold {
+                if state.config.settings.hold
+                    && !(state.config.settings.mouse_button == 3 && !s.held)
+                {
                     s.held = true;
                     s.press = at;
                     s.gesture.reset();
@@ -355,24 +369,26 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
             ui.set_status(
                 format!(
                     "Botão configurado: {}",
-                    ["Meio", "Mouse 4", "Mouse 5"][button as usize]
+                    ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"][button as usize]
                 )
                 .into(),
             );
         }
-        Input::Release => {
+        Input::Release {
+            point: released,
+            at,
+        } => {
             s.held = false;
             if state.config.settings.hold
-                && s.press.elapsed() >= Duration::from_millis(state.config.settings.hold_ms)
+                && at.saturating_duration_since(s.press)
+                    >= Duration::from_millis(state.config.settings.hold_ms)
             {
                 if s.gesture.release(Some(0)).is_none() {
                     close(state, ring);
                 } else {
                     let selected = if s.query.is_empty() {
-                        native::cursor().ok().and_then(|p| {
-                            let (x, y) = point(s, p);
-                            direction(x, y, state.config.settings.distance)
-                        })
+                        let (x, y) = point(s, released);
+                        direction(x, y, state.config.settings.distance)
                     } else {
                         s.selected
                     };
@@ -407,7 +423,7 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
                 s.wheel_slot = None;
             }
         }
-        Input::Escape | Input::Outside | Input::ForegroundChanged => close(state, ring),
+        Input::Escape | Input::Outside => close(state, ring),
         Input::ImeUnavailable => {
             ring.set_query("IME: use o mouse / use the mouse".into());
         }
@@ -641,6 +657,8 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
     for e in events {
         process(state, ui, ring, e);
     }
+    // Opening/showing windows can dispatch native events; use a fresh foreground snapshot.
+    let foreground = native::foreground();
     let mut should_close = false;
     if let Some(s) = state.session.as_mut() {
         if !s.hooks.shared.ready.load(Ordering::Acquire) {
@@ -771,6 +789,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
             _ => services::light_theme(),
         };
         ui.global::<Ink>().set_light(light);
+        preview_background(ui, ring);
         let accent = color(&state.config.settings.accent);
         ui.global::<Ink>().set_accent(accent);
         ring.global::<Ink>().set_accent(accent);
@@ -824,10 +843,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     native::enable_per_monitor_dpi();
+    let creating_overlay = Rc::new(Cell::new(false));
+    let overlay_attributes = creating_overlay.clone();
     slint::BackendSelector::new()
         .backend_name("winit".into())
-        .with_winit_window_attributes_hook(|attrs| {
-            if attrs.title == "Orbit Axion · Ring" {
+        .with_winit_window_attributes_hook(move |attrs| {
+            // Slint supplies the application name here; component titles arrive later.
+            if overlay_attributes.get() {
                 attrs
                     .with_active(false)
                     .with_visible(false)
@@ -836,7 +858,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_transparent(true)
                     .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
             } else {
-                attrs
+                attrs.with_transparent(true)
             }
         })
         .select()?;
@@ -845,7 +867,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     i_slint_backend_selector::with_global_context(|ctx| {
         ctx.set_accent_color(slint::Color::from_rgb_u8(0, 172, 172))
     })?;
-    let ring = Ring::new()?;
+    creating_overlay.set(true);
+    let ring = Ring::new();
+    creating_overlay.set(false);
+    let ring = ring?;
     let tray = Tray::new()?;
     tray.set_tray_image(tray_image());
     if smoke_enabled || ui_test {
@@ -880,6 +905,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.settings.sound_volume = 17;
         config.settings.size = 420.0;
         config.settings.startup = true;
+        config.settings.background_color = "#464545".into();
+        config.settings.opacity = 0.37;
     }
     let automatic = config.settings.automatic_profiles;
     let selected_profile = config
@@ -924,6 +951,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }));
     editor::connect(&ui, &ring, &tray, state.clone());
     editor::refresh(&ui, &mut state.borrow_mut());
+    preview_background(&ui, &ring);
     state.borrow().audio.request(Request::Devices);
     state.borrow().audio.request(Request::Labels);
     if !smoke_enabled && !ui_test && !state.borrow().safe && state.borrow().config.settings.updates
@@ -976,6 +1004,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if ui_test {
         ui.set_page(2);
         let weak = ui.as_weak();
+        #[cfg(debug_assertions)]
+        let test_state = state.clone();
+        #[cfg(debug_assertions)]
+        let test_ring = ring.as_weak();
         ui_timer.start(
             slint::TimerMode::SingleShot,
             Duration::from_millis(250),
@@ -989,7 +1021,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     assert_eq!(ui.get_menu_size(), 420);
                     assert_eq!(ui.get_sound_volume(), 17.0);
                     assert!(ui.get_startup());
+                    assert_eq!(ui.get_background_hex(), "#464545");
+                    assert!((ui.get_glass_strength() - 37.0).abs() < 0.01);
+                    assert!(ui.global::<Ink>().get_custom_background());
+                    assert_eq!(ui.global::<Ink>().get_background_color(), color("#464545"));
                     println!("UI TEST OK: hidden-page settings preserve their loaded values");
+                    #[cfg(debug_assertions)]
+                    if let Some(ring) = test_ring.upgrade() {
+                        interaction_test::run(ui.as_weak(), ring.as_weak(), test_state.clone(), 0);
+                        return;
+                    }
                     let _ = slint::quit_event_loop();
                 }
             },

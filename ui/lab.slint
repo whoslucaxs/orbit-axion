@@ -9,6 +9,9 @@ export global Ink {
     out property <color> surface: light ? #f7f7f4 : #232525;
     out property <color> edge: light ? #ffffffb0 : #DFDEDC28;
     in-out property <color> accent: #00ACAC;
+    in-out property <bool> custom-background: false;
+    in-out property <color> background-color: #111212;
+    out property <color> panel-background: custom-background ? background-color : canvas;
 }
 component Pill inherits Rectangle {
     in property <string> text;
@@ -39,7 +42,7 @@ component Face inherits Rectangle {
     background: transparent;
     Rectangle { x: parent.width / 2 - 152px * root.zoom; y: parent.height / 2 - 152px * root.zoom; width: 304px * root.zoom; height: 304px * root.zoom;
         border-radius: 152px * root.zoom; border-width: 1px; border-color: Ink.edge;
-        background: @linear-gradient(115deg, Ink.surface.with-alpha(root.glass-opacity), Ink.canvas.with-alpha(root.glass-opacity));
+        background: @linear-gradient(115deg, Ink.panel-background.brighter(8%).with-alpha(root.glass-opacity), Ink.panel-background.with-alpha(root.glass-opacity));
         drop-shadow-blur: 22px; drop-shadow-offset-y: 8px; drop-shadow-color: #00000030;
         Rectangle { x: 62px * root.zoom; y: 1px; width: 180px * root.zoom; height: 1px; background: #DFDEDC35; }
     }
@@ -99,7 +102,7 @@ export component Editor inherits Window {
     init => { Palette.color-scheme = ColorScheme.dark; }
     in property <[RingItem]> items;
     title: "Orbit Axion"; preferred-width: 1160px; preferred-height: 800px; min-width: 1080px; min-height: 760px;
-    background: Ink.canvas;
+    background: Ink.panel-background.with-alpha(root.glass-strength / 100);
     in property <[string]> profiles;
     in property <[string]> menus;
     in-out property <int> profile-index: 0;
@@ -133,6 +136,10 @@ export component Editor inherits Window {
     in-out property <string> icon-name;
     in-out property<string> icon-color;
     in-out property<string> accent-hex: "#00ACAC";
+    in-out property<string> background-hex;
+    changed background-hex => { root.preview-background(); }
+    changed glass-strength => { root.preview-background(); }
+    callback preview-background;
     in-out property <string> profile-name;
     in-out property <string> executables;
     in-out property <int> priority: 0;
@@ -307,11 +314,17 @@ export component Editor inherits Window {
                     ComboBox { model: root.en ? ["Follow Windows", "Dark", "Light"] : ["Seguir Windows", "Escuro", "Claro"]; current-index: root.theme; selected(value) => { root.theme = self.current-index; } }
                     Caption { text: root.en ? "Menu diameter (logical pixels)" : "Diâmetro do menu (pixels lógicos)"; }
                     SpinBox { value <=> root.menu-size; minimum: 280; maximum: 640; }
-                    Caption { text: root.en ? "Glass opacity" : "Opacidade do vidro"; }
-                    Slider { value <=> root.glass-strength; minimum: 30; maximum: 100; }
-                    ComboBox { model: ["Meio / Middle", "Mouse 4", "Mouse 5"]; current-index: root.mouse-button; selected(value) => { root.mouse-button = self.current-index; } }
+                    Caption { text: root.en ? "Panel background color (#RRGGBB; blank follows theme)" : "Cor de fundo do painel (#RRGGBB; vazio segue o tema)"; }
+                    LineEdit { text <=> root.background-hex; placeholder-text: "#464545"; }
+                    Pill { text: root.en ? "Use theme background" : "Usar fundo do tema"; clicked => { root.background-hex = ""; } }
+                    Caption { text: (root.en ? "Background opacity: " : "Opacidade do fundo: ") + round(root.glass-strength) + "%"; }
+                    Caption { text: root.en ? "0% transparent · 100% solid. Live preview in the panel and ring." : "0% transparente · 100% sólido. Prévia no painel e no anel."; wrap: word-wrap; }
+                    Slider { value <=> root.glass-strength; minimum: 0; maximum: 100; }
+                    ComboBox { model: root.en ? ["Middle", "Mouse 4", "Mouse 5", "Left", "Right"] : ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"]; current-index: root.mouse-button; selected(value) => { root.mouse-button = self.current-index; } }
+                    Caption { text: root.en ? "Left/right activation is disabled inside this editor. Extra vendor buttons must be mapped to a standard mouse button." : "Esquerdo/direito não interceptam cliques neste editor. Botões extras do fabricante precisam estar mapeados para um botão padrão do mouse."; wrap: word-wrap; }
                     Pill { text: root.en ? "Detect mouse button (10 s)" : "Detectar botão do mouse (10 s)"; clicked=>{root.learn-button();} }
-                    CheckBox { text: root.en ? "Hold, move and release" : "Segurar, mover e soltar"; checked <=> root.hold; }
+                    CheckBox { text: root.en ? "Hold, move and release (off = click mode)" : "Segurar, mover e soltar (desmarcado = modo clique)"; checked <=> root.hold; }
+                    Caption { text: root.en ? "A short tap keeps the menu open. In hold mode, releasing at the center cancels." : "Clique curto mantém o menu aberto. No modo segurar, soltar no centro cancela."; wrap: word-wrap; }
                     SpinBox { value <=> root.hold-ms; minimum: 50; maximum: 2000; }
                     Caption { text: root.en ? "Minimum gesture distance" : "Distância mínima do gesto"; }
                     Slider { value <=> root.distance; minimum: 10; maximum: 180; }

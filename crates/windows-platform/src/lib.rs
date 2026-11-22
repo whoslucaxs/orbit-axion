@@ -16,7 +16,10 @@ use windows::{
     Win32::{
         Foundation::*,
         Graphics::{Dwm::*, Gdi::*},
-        System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
+        System::{
+            LibraryLoader::GetModuleHandleW,
+            Threading::{GetCurrentProcessId, GetCurrentThreadId},
+        },
         UI::{HiDpi::*, Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
     },
     core::Result,
@@ -152,9 +155,11 @@ pub enum Input {
         foreground: usize,
         at: Instant,
     },
-    Release,
+    Release {
+        point: Point,
+        at: Instant,
+    },
     Learned(u32),
-    ForegroundChanged,
     ImeUnavailable,
     Select(Point),
     Outside,
@@ -257,6 +262,34 @@ impl HookContext {
     }
 }
 
+fn own_foreground() -> bool {
+    let mut pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut pid));
+    }
+    pid == unsafe { GetCurrentProcessId() }
+}
+
+// Keep saved IDs 0..2 compatible with existing configurations.
+fn mouse_button(message: u32, data: u32) -> Option<(u32, bool)> {
+    let down = matches!(
+        message,
+        WM_MBUTTONDOWN | WM_XBUTTONDOWN | WM_LBUTTONDOWN | WM_RBUTTONDOWN
+    );
+    let button = match message {
+        WM_MBUTTONDOWN | WM_MBUTTONUP => 0,
+        WM_XBUTTONDOWN | WM_XBUTTONUP => match data >> 16 {
+            1 => 1,
+            2 => 2,
+            _ => return None,
+        },
+        WM_LBUTTONDOWN | WM_LBUTTONUP => 3,
+        WM_RBUTTONDOWN | WM_RBUTTONUP => 4,
+        _ => return None,
+    };
+    Some((button, down))
+}
+
 unsafe extern "system" fn mouse_hook(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
     if code >= 0 {
         // Windows guarantees MSLLHOOKSTRUCT for HC_ACTION in this callback.
@@ -271,13 +304,11 @@ unsafe extern "system" fn mouse_hook(code: i32, w: WPARAM, l: LPARAM) -> LRESULT
                 return false;
             };
             let message = w.0 as u32;
-            let button = match message {
-                WM_MBUTTONDOWN | WM_MBUTTONUP => Some(0),
-                WM_XBUTTONDOWN | WM_XBUTTONUP => Some(data.mouseData >> 16),
-                _ => None,
-            };
+            let event = mouse_button(message, data.mouseData);
+            let button = event.map(|(button, _)| button);
+            let down = event.is_some_and(|(_, down)| down);
             if let Some(button) = button
-                && matches!(message, WM_MBUTTONDOWN | WM_XBUTTONDOWN)
+                && down
                 && c.shared.ready.load(Ordering::Acquire)
                 && c.shared.healthy()
                 && c.shared.learning_until.load(Ordering::Acquire)
@@ -289,21 +320,27 @@ unsafe extern "system" fn mouse_hook(code: i32, w: WPARAM, l: LPARAM) -> LRESULT
                 return c.activation_down;
             }
             if button == Some(c.shared.button.load(Ordering::Relaxed)) {
-                if message == WM_MBUTTONUP || message == WM_XBUTTONUP {
+                if !down {
                     if c.activation_down {
                         c.activation_down = false;
-                        c.send(Input::Release);
+                        c.send(Input::Release {
+                            point,
+                            at: Instant::now(),
+                        });
                         return true;
                     }
                 } else if c.shared.ready.load(Ordering::Acquire)
                     && c.shared.healthy()
+                    // Primary buttons remain usable in the editor itself.
+                    && !(button.is_some_and(|b| b >= 3)
+                        && own_foreground())
                     && (c.shared.allowed_origin.load(Ordering::Relaxed) == 0
                         || c.shared.allowed_origin.load(Ordering::Relaxed) == foreground())
                 {
                     if !c.shared.active.load(Ordering::Acquire) {
                         c.dead = None;
-                        for vk in 1..256 {
-                            c.preheld[vk] = unsafe { GetAsyncKeyState(vk as i32) } < 0;
+                        for (vk, preheld) in c.preheld.iter_mut().enumerate().skip(1) {
+                            *preheld = unsafe { GetAsyncKeyState(vk as i32) } < 0;
                         }
                     }
                     c.activation_down = c.send(Input::Press {
@@ -477,27 +514,6 @@ unsafe extern "system" fn keyboard_hook(code: i32, w: WPARAM, l: LPARAM) -> LRES
     unsafe { CallNextHookEx(None, code, w, l) }
 }
 
-unsafe extern "system" fn foreground_hook(
-    _: windows::Win32::UI::Accessibility::HWINEVENTHOOK,
-    _: u32,
-    window: HWND,
-    _: i32,
-    _: i32,
-    _: u32,
-    _: u32,
-) {
-    CONTEXT.with(|cell| {
-        let borrowed = cell.borrow();
-        if let Some(c) = borrowed.as_ref()
-            && c.shared.active.load(Ordering::Acquire)
-            && window.0 as usize != c.shared.origin.load(Ordering::Relaxed)
-        {
-            c.shared.active.store(false, Ordering::Release);
-            c.send(Input::ForegroundChanged);
-        }
-    });
-}
-
 pub struct Hooks {
     thread: Option<JoinHandle<()>>,
     id: u32,
@@ -505,6 +521,22 @@ pub struct Hooks {
 }
 
 impl Hooks {
+    /// Controller regression tests use real windows without installing input hooks.
+    #[cfg(debug_assertions)]
+    pub fn detached_for_test() -> (Self, Receiver<Input>) {
+        let (_, rx) = mpsc::sync_channel(1);
+        let shared = Arc::new(Shared::default());
+        shared.ready.store(true, Ordering::Release);
+        shared.beat();
+        (
+            Self {
+                thread: None,
+                id: 0,
+                shared,
+            },
+            rx,
+        )
+    }
     pub fn start(
         button: u32,
         search: bool,
@@ -516,8 +548,8 @@ impl Hooks {
         search: bool,
         wake: Arc<dyn Fn() + Send + Sync>,
     ) -> std::result::Result<(Self, Receiver<Input>), String> {
-        if button > 2 {
-            return Err("Botão inválido: use 0 (meio), 1 (Mouse 4) ou 2 (Mouse 5)".into());
+        if button > 4 {
+            return Err("Botão do mouse inválido".into());
         }
         let shared = Arc::new(Shared::default());
         shared.button.store(button, Ordering::Relaxed);
@@ -550,21 +582,6 @@ impl Hooks {
                     return;
                 }
             };
-            let foreground = windows::Win32::UI::Accessibility::SetWinEventHook(
-                EVENT_SYSTEM_FOREGROUND,
-                EVENT_SYSTEM_FOREGROUND,
-                None,
-                Some(foreground_hook),
-                0,
-                0,
-                WINEVENT_OUTOFCONTEXT,
-            );
-            if foreground.0.is_null() {
-                let _ = UnhookWindowsHookEx(keyboard);
-                let _ = UnhookWindowsHookEx(mouse);
-                let _ = startup_tx.send(Err("Não foi possível monitorar o foreground".into()));
-                return;
-            }
             let mut msg = MSG::default();
             let _ = PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE);
             CONTEXT.with(|c| {
@@ -584,7 +601,6 @@ impl Hooks {
                 let _ = TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
-            let _ = windows::Win32::UI::Accessibility::UnhookWinEvent(foreground);
             let _ = UnhookWindowsHookEx(keyboard);
             let _ = UnhookWindowsHookEx(mouse);
             CONTEXT.with(|c| *c.borrow_mut() = None);
@@ -605,7 +621,9 @@ impl Drop for Hooks {
     fn drop(&mut self) {
         self.shared.ready.store(false, Ordering::Release);
         self.shared.active.store(false, Ordering::Release);
-        let _ = unsafe { PostThreadMessageW(self.id, WM_QUIT, WPARAM(0), LPARAM(0)) };
+        if self.id != 0 {
+            let _ = unsafe { PostThreadMessageW(self.id, WM_QUIT, WPARAM(0), LPARAM(0)) };
+        }
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
@@ -615,6 +633,22 @@ impl Drop for Hooks {
 #[cfg(test)]
 mod input_tests {
     use super::*;
+    #[test]
+    fn decodes_all_five_buttons_and_keeps_up_down_pairs() {
+        for (id, down, up, data) in [
+            (0, WM_MBUTTONDOWN, WM_MBUTTONUP, 0),
+            (1, WM_XBUTTONDOWN, WM_XBUTTONUP, 1 << 16),
+            (2, WM_XBUTTONDOWN, WM_XBUTTONUP, 2 << 16),
+            (3, WM_LBUTTONDOWN, WM_LBUTTONUP, 0),
+            (4, WM_RBUTTONDOWN, WM_RBUTTONUP, 0),
+        ] {
+            assert_eq!(mouse_button(down, data), Some((id, true)));
+            assert_eq!(mouse_button(up, data), Some((id, false)));
+        }
+        assert_eq!(mouse_button(WM_MOUSEMOVE, 0), None);
+        assert_eq!(mouse_button(WM_XBUTTONDOWN, 3 << 16), None);
+    }
+
     #[test]
     fn captured_key_never_leaks_repeat_or_release_after_closing() {
         let mut captured = true;
