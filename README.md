@@ -2,6 +2,8 @@
 
 Menu radial para Windows 11 x64 em Rust + Slint, independente de periféricos Logitech. GPL-3.0-only.
 
+O binário MSVC requer o Microsoft Visual C++ Runtime x64 (VCRUNTIME140.dll); o MSI atual não instala esse pré-requisito.
+
 ## Versão 0.2.0
 
 Editor de oito posições, submenus, perfis por caminho de executável com prioridade e herança do Global, modo manual, busca fuzzy, macros canceláveis, atalhos, texto Unicode, abertura de programas/scripts, mídia e comandos de janela/sistema. O anel abre somente por Meio, Mouse 4 ou Mouse 5; funciona por clique ou segurar/soltar, sem tomar o foco. Fechar o editor mantém o app na bandeja; use Sair na bandeja para encerrar.
@@ -18,7 +20,8 @@ Requer Windows 11 x64, Rust MSVC 1.95+, Build Tools C++ e Windows SDK.
 
 ```powershell
 cargo build --locked --release -p orbit-axion --bins
-.	argetelease\orbit-axion.exe
+.	arget
+elease\orbit-axion.exe
 ```
 
 Para forçar renderização software, defina `SLINT_BACKEND=winit-software` antes de executar. Normalmente o backend seleciona GPU com fallback disponível. O overlay mantém o centro no cursor, inclusive próximo às bordas: pode ficar parcialmente cortado.
