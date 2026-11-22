@@ -67,6 +67,14 @@ pub fn prepare_overlay(hwnd: HWND) -> Result<()> {
     unsafe {
         windows::Win32::UI::Shell::SetWindowSubclass(hwnd, Some(overlay_proc), 0x4f524249, 0)
             .ok()?;
+        // A system acrylic backdrop covers the rectangular HWND, including transparent corners.
+        let backdrop = DWMSBT_NONE.0;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_SYSTEMBACKDROP_TYPE,
+            (&backdrop as *const i32).cast(),
+            size_of::<i32>() as u32,
+        );
         SetLastError(WIN32_ERROR(0));
         let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         let previous = SetWindowLongPtrW(
@@ -133,18 +141,6 @@ pub fn show_overlay(hwnd: HWND, center: Point, diameter: i32) -> Result<()> {
 pub fn hide_overlay(hwnd: HWND) {
     unsafe {
         let _ = ShowWindow(hwnd, SW_HIDE);
-    }
-}
-
-pub fn acrylic_probe(hwnd: HWND) -> Result<()> {
-    let kind = DWMSBT_TRANSIENTWINDOW.0;
-    unsafe {
-        DwmSetWindowAttribute(
-            hwnd,
-            DWMWA_SYSTEMBACKDROP_TYPE,
-            (&kind as *const i32).cast(),
-            size_of::<i32>() as u32,
-        )
     }
 }
 

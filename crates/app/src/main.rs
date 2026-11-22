@@ -619,7 +619,6 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
             };
             let raw = h.hwnd.get();
             native::prepare_overlay(hwnd(raw)).map_err(|e| e.to_string())?;
-            let _ = native::acrylic_probe(hwnd(raw));
             Ok(raw)
         })
     {

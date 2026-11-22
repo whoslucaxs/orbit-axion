@@ -103,6 +103,21 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                     (overlay.window(), "ring-test.png"),
                 ] {
                     let pixels = window.take_snapshot().unwrap();
+                    if filename == "ring-test.png" {
+                        let (width, height) = (pixels.width(), pixels.height());
+                        for (x, y) in [
+                            (0, 0),
+                            (width - 1, 0),
+                            (0, height - 1),
+                            (width - 1, height - 1),
+                        ] {
+                            assert_eq!(
+                                pixels.as_slice()[(y * width + x) as usize].a,
+                                0,
+                                "ring corners must be transparent"
+                            );
+                        }
+                    }
                     if filename == "appearance-test.png" {
                         let pixel = pixels.as_slice()[((pixels.height() - 10) * pixels.width()
                             + pixels.width()

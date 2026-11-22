@@ -2,7 +2,7 @@ use crate::{Ring, hwnd, monitor_scale};
 use orbit_windows::{self as native, Point};
 use slint::ComponentHandle;
 use std::time::{Duration, Instant};
-use windows::Win32::{Foundation::RECT, UI::WindowsAndMessaging::*};
+use windows::Win32::{Foundation::RECT, Graphics::Dwm::*, UI::WindowsAndMessaging::*};
 
 /// Exercises real Slint/Win32 windows without hooks, injected input or audio writes.
 pub struct Smoke {
@@ -37,6 +37,22 @@ impl Smoke {
                 if ex & WS_EX_NOACTIVATE.0 == 0 || ex & WS_EX_TOPMOST.0 == 0 {
                     return Err(format!("Estilos inválidos: 0x{ex:x}"));
                 }
+                let mut backdrop = 0i32;
+                if unsafe {
+                    DwmGetWindowAttribute(
+                        hwnd(raw),
+                        DWMWA_SYSTEMBACKDROP_TYPE,
+                        (&mut backdrop as *mut i32).cast(),
+                        size_of::<i32>() as u32,
+                    )
+                }
+                .is_ok()
+                    && backdrop != DWMSBT_NONE.0
+                {
+                    return Err(format!(
+                        "Overlay com fundo retangular do sistema: {backdrop}"
+                    ));
+                }
                 if native::foreground() != origin {
                     return Err("Overlay alterou a janela em primeiro plano".into());
                 }
@@ -50,7 +66,7 @@ impl Smoke {
                     ));
                 }
                 println!(
-                    "SMOKE OK: overlay visível, NOACTIVATE, TOPMOST, centro exato, foco preservado; {size}px"
+                    "SMOKE OK: overlay visível, NOACTIVATE, TOPMOST, centro exato, foco preservado, sem backdrop retangular; {size}px"
                 );
                 Ok(())
             })();

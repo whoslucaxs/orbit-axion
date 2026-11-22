@@ -1,3 +1,15 @@
+# Verificações locais — 0.2.2 — 2026-11-22
+
+- Desativado o backdrop DWM que preenchia os limites retangulares da janela do anel.
+- Smoke consulta DWMWA_SYSTEMBACKDROP_TYPE na janela real e exige DWMSBT_NONE quando o atributo está disponível.
+- Snapshot do anel verifica alpha zero nos quatro cantos; cor e opacidade continuam aplicadas ao círculo.
+- Removida a linha decorativa que extrapolava a borda circular.
+- Permanecem as verificações de foco, geometria, cinco botões e persistência.
+
+O teste consulta o estado nativo e o buffer do renderizador; a aparência final em outros drivers/compositores exige validação nesses ambientes.
+
+---
+
 # Verificações locais — 0.2.1 — 2026-11-22
 
 Ambiente: Windows 11 x64, Rust MSVC 1.98.1, Slint 1.19.0.

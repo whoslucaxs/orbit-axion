@@ -44,7 +44,6 @@ component Face inherits Rectangle {
         border-radius: 152px * root.zoom; border-width: 1px; border-color: Ink.edge;
         background: @linear-gradient(115deg, Ink.panel-background.brighter(8%).with-alpha(root.glass-opacity), Ink.panel-background.with-alpha(root.glass-opacity));
         drop-shadow-blur: 22px; drop-shadow-offset-y: 8px; drop-shadow-color: #00000030;
-        Rectangle { x: 62px * root.zoom; y: 1px; width: 180px * root.zoom; height: 1px; background: #DFDEDC35; }
     }
     for item[i] in root.items: Rectangle {
         x: parent.width / 2 + item.x * 1px * root.zoom - 29px * root.zoom; y: parent.height / 2 + item.y * 1px * root.zoom - 29px * root.zoom;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 — anel sem fundo retangular — 2026-11-22
+
+- Desativado o backdrop acrílico nativo que preenchia toda a janela retangular do anel.
+- Removida a linha decorativa que ultrapassava a borda circular.
+- Mantida a cor/opacidade no círculo; teste verifica backdrop nativo desativado e cantos transparentes.
+
 ## 0.2.1 — abertura e aparência — 2026-11-22
 
 - Overlay identificado durante a construção, antes de o Slint atribuir seu título; aplica abertura sem ativação corretamente.
