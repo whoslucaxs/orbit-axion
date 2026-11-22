@@ -4,10 +4,10 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
     let (Some(editor), Some(overlay)) = (ui.upgrade(), ring.upgrade()) else {
         panic!("missing test windows")
     };
-    if case == 10 {
+    if case == 14 {
         close(&mut state.borrow_mut(), &overlay);
         println!(
-            "INTERACTION OK: five buttons, delayed short releases, click mode and persistent overlay"
+            "INTERACTION OK: five mouse buttons, keyboard triggers, delayed short releases, click mode and persistent overlay"
         );
         let _ = slint::quit_event_loop();
         return;
@@ -35,7 +35,12 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
             origin,
         });
         s.config.settings.mouse_button = case % 5;
-        s.config.settings.hold = case < 5;
+        s.config.settings.keyboard_key = match case {
+            10 | 11 => Some(0x7c),
+            12 | 13 => Some(0x41),
+            _ => None,
+        };
+        s.config.settings.hold = case < 5 || (case >= 10 && case.is_multiple_of(2));
         s.config.settings.hold_ms = 220;
         let press = Instant::now() - Duration::from_millis(500);
         process(
@@ -147,7 +152,7 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                     .unwrap();
                 }
             }
-            if case < 5 {
+            if case < 5 || (case >= 10 && case.is_multiple_of(2)) {
                 process(&mut s, &editor, &overlay, Input::Escape);
                 let press = Instant::now() - Duration::from_millis(350);
                 process(

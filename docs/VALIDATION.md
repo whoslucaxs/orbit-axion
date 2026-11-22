@@ -1,3 +1,15 @@
+# Verificações locais — 0.2.3 — 2026-11-22
+
+- 18 testes unitários incluem tecla configurada, compatibilidade do JSON, persistência, pares de entrada, repetição e soltura após fechamento.
+- UI test carrega F13 como acionamento e percorre os cinco botões do mouse mais teclas em modo clique/segurar, em janela real sem interceptação.
+- Probe instala/remove hooks desarmados para mouse, F13 e F24.
+- Entradas sintetizadas pelo executor recebem marcador para evitar reativação pelo próprio Orbit.
+- Mantidos os testes de fundo nativo desativado, cantos transparentes, foco e geometria da 0.2.2.
+
+A captura usa uma tecla individual, sem combinação. No editor a tecla de ativação fica livre para digitação. Atalhos reservados pelo sistema e variações de hardware/driver não foram validados em todos os ambientes.
+
+---
+
 # Verificações locais — 0.2.2 — 2026-11-22
 
 - Desativado o backdrop DWM que preenchia os limites retangulares da janela do anel.

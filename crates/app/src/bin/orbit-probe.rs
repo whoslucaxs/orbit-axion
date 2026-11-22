@@ -12,13 +12,13 @@ fn main() {
         Ok(p) => println!("cursor: {p:?}; escala: {:?}", scale_at(p)),
         Err(e) => println!("cursor indisponível: {e}"),
     }
-    for button in 0..=4 {
+    for button in [0, 1, 2, 3, 4, 0x100 + 0x7c, 0x100 + 0x87] {
         match Hooks::start(button, false) {
             Ok((hooks, _)) => {
                 drop(hooks);
-                println!("hook botão {button}: instalado e removido, sem captura");
+                println!("hook acionamento {button}: instalado e removido, sem captura");
             }
-            Err(e) => println!("hook botão {button}: FALHOU ({e})"),
+            Err(e) => println!("hook acionamento {button}: FALHOU ({e})"),
         }
     }
     match WindowsVolume::connect().and_then(|v| v.read_level()) {

@@ -2,6 +2,9 @@
 #![cfg(windows)]
 pub mod services;
 
+/// Tag our synthesized action input so it cannot reopen the activation key.
+pub const INJECTED_INPUT_MARKER: usize = 0x4f524249;
+
 use std::{
     cell::RefCell,
     sync::{
@@ -237,6 +240,7 @@ struct HookContext {
     shared: Arc<Shared>,
     tx: SyncSender<Input>,
     activation_down: bool,
+    activation_key: Option<usize>,
     left_consumed: bool,
     keys: [bool; 256],
     preheld: [bool; 256],
@@ -391,9 +395,32 @@ fn key_guard(up: bool, active: bool, preheld: bool, captured: &mut bool) -> Opti
     None
 }
 
+#[derive(Debug, PartialEq)]
+enum KeyEdge {
+    Press,
+    Repeat,
+    Release,
+}
+fn activation_edge(up: bool, captured: bool, eligible: bool) -> Option<KeyEdge> {
+    if captured {
+        Some(if up {
+            KeyEdge::Release
+        } else {
+            KeyEdge::Repeat
+        })
+    } else if !up && eligible {
+        Some(KeyEdge::Press)
+    } else {
+        None
+    }
+}
+
 unsafe extern "system" fn keyboard_hook(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
     if code >= 0 {
         let data = unsafe { &*(l.0 as *const KBDLLHOOKSTRUCT) };
+        if data.dwExtraInfo == INJECTED_INPUT_MARKER {
+            return unsafe { CallNextHookEx(None, code, w, l) };
+        }
         let consumed = CONTEXT.with(|cell| {
             let mut borrow = cell.borrow_mut();
             let Some(c) = borrow.as_mut() else {
@@ -406,6 +433,69 @@ unsafe extern "system" fn keyboard_hook(code: i32, w: WPARAM, l: LPARAM) -> LRES
             let up = w.0 as u32 == WM_KEYUP || w.0 as u32 == WM_SYSKEYUP;
             if up {
                 c.preheld[key] = false;
+            }
+            let captured = c.activation_key == Some(key);
+            let ready = c.shared.ready.load(Ordering::Acquire) && c.shared.healthy();
+            if !up
+                && !captured
+                && !c.keys[key]
+                && !c.preheld[key]
+                && ready
+                && orbit_core::model::valid_keyboard_key(key as u32)
+                && c.shared.learning_until.load(Ordering::Acquire)
+                    > c.shared.clock.elapsed().as_millis() as u64
+            {
+                let trigger = orbit_core::model::KEYBOARD_TRIGGER_BASE + key as u32;
+                c.shared.learning_until.store(0, Ordering::Release);
+                c.shared.button.store(trigger, Ordering::Release);
+                c.keys[key] = c.send(Input::Learned(trigger));
+                return c.keys[key];
+            }
+            let eligible = !up
+                && ready
+                && !c.keys[key]
+                && !c.preheld[key]
+                && c.shared.button.load(Ordering::Relaxed)
+                    == orbit_core::model::KEYBOARD_TRIGGER_BASE + key as u32
+                && !own_foreground()
+                && (c.shared.allowed_origin.load(Ordering::Relaxed) == 0
+                    || c.shared.allowed_origin.load(Ordering::Relaxed) == foreground());
+            match activation_edge(up, captured, eligible) {
+                Some(KeyEdge::Press) => {
+                    let Ok(point) = cursor() else { return false };
+                    c.dead = None;
+                    for (vk, held) in c.preheld.iter_mut().enumerate().skip(1) {
+                        *held = unsafe { GetAsyncKeyState(vk as i32) } < 0;
+                    }
+                    c.preheld[key] = false;
+                    c.keys[key] = c.send(Input::Press {
+                        point,
+                        foreground: foreground(),
+                        at: Instant::now(),
+                    });
+                    if c.keys[key] {
+                        c.activation_key = Some(key);
+                    }
+                    return c.keys[key];
+                }
+                Some(KeyEdge::Repeat) => return true,
+                Some(KeyEdge::Release) => {
+                    c.activation_key = None;
+                    c.keys[key] = false;
+                    match cursor() {
+                        Ok(point) => {
+                            c.send(Input::Release {
+                                point,
+                                at: Instant::now(),
+                            });
+                        }
+                        Err(_) => {
+                            c.send(Input::Escape);
+                        }
+                    }
+                    return true;
+                }
+                None => {}
             }
             if let Some(consumed) =
                 key_guard(up, c.shared.menu_active(), c.preheld[key], &mut c.keys[key])
@@ -544,7 +634,11 @@ impl Hooks {
         search: bool,
         wake: Arc<dyn Fn() + Send + Sync>,
     ) -> std::result::Result<(Self, Receiver<Input>), String> {
-        if button > 4 {
+        if button > 4
+            && !button
+                .checked_sub(orbit_core::model::KEYBOARD_TRIGGER_BASE)
+                .is_some_and(orbit_core::model::valid_keyboard_key)
+        {
             return Err("Botão do mouse inválido".into());
         }
         let shared = Arc::new(Shared::default());
@@ -585,9 +679,10 @@ impl Hooks {
                     shared: copy,
                     tx,
                     activation_down: false,
+                    activation_key: None,
                     left_consumed: false,
                     keys: [false; 256],
-                    preheld: [false; 256],
+                    preheld: std::array::from_fn(|vk| GetAsyncKeyState(vk as i32) < 0),
                     wake,
                     dead: None,
                 })
@@ -629,6 +724,16 @@ impl Drop for Hooks {
 #[cfg(test)]
 mod input_tests {
     use super::*;
+    #[test]
+    fn keyboard_activation_owns_repeats_and_release_after_closing() {
+        assert_eq!(activation_edge(false, false, true), Some(KeyEdge::Press));
+        assert_eq!(activation_edge(false, true, true), Some(KeyEdge::Repeat));
+        assert_eq!(activation_edge(false, true, false), Some(KeyEdge::Repeat));
+        assert_eq!(activation_edge(true, true, false), Some(KeyEdge::Release));
+        assert_eq!(activation_edge(true, false, true), None);
+        assert_eq!(activation_edge(false, false, false), None);
+    }
+
     #[test]
     fn decodes_all_five_buttons_and_keeps_up_down_pairs() {
         for (id, down, up, data) in [

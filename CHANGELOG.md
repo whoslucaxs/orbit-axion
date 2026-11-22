@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3 — acionamento pelo teclado — 2026-11-22
+
+- Captura de teclas do teclado, incluindo letras, funções F1–F24 e modificadores, além dos botões do mouse.
+- Escolha Mouse/Teclado com nome da tecla, persistência e compatibilidade com configurações anteriores.
+- Repetições e soltura pertencem à tecla capturada; digitação permanece livre no editor.
+- Entrada sintetizada pelas próprias ações é identificada para não reativar o menu.
+- Mantida a correção do fundo externo transparente da versão 0.2.2.
+
 ## 0.2.2 — anel sem fundo retangular — 2026-11-22
 
 - Desativado o backdrop acrílico nativo que preenchia toda a janela retangular do anel.

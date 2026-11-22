@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 #[serde(default)]
 pub struct Settings {
     pub mouse_button: u32,
+    pub keyboard_key: Option<u32>,
     pub hold: bool,
     pub hold_ms: u64,
     pub distance: f64,
@@ -26,6 +27,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             mouse_button: 1,
+            keyboard_key: None,
             hold: true,
             hold_ms: 220,
             distance: 48.0,
@@ -43,6 +45,17 @@ impl Default for Settings {
             automatic_profiles: true,
             manual_profile: "global".into(),
         }
+    }
+}
+
+pub const KEYBOARD_TRIGGER_BASE: u32 = 0x100;
+pub fn valid_keyboard_key(key: u32) -> bool {
+    (0x08..=0xfe).contains(&key) && key != 0xe7
+}
+impl Settings {
+    pub fn activation_code(&self) -> u32 {
+        self.keyboard_key
+            .map_or(self.mouse_button, |key| KEYBOARD_TRIGGER_BASE + key)
     }
 }
 
@@ -309,6 +322,9 @@ impl Config {
                 "Cor do fundo inválida: use #RRGGBB ou deixe vazio para seguir o tema".into(),
             );
         }
+        if s.keyboard_key.is_some_and(|key| !valid_keyboard_key(key)) {
+            return Err("Capture uma tecla válida do teclado".into());
+        }
         if s.mouse_button > 4
             || !(50..=2000).contains(&s.hold_ms)
             || !s.distance.is_finite()
@@ -502,6 +518,33 @@ mod tests {
         let loaded: Config = serde_json::from_value(legacy).unwrap();
         assert!(loaded.settings.background_color.is_empty());
         loaded.validate().unwrap();
+    }
+    #[test]
+    fn keyboard_trigger_roundtrips_and_old_mouse_configs_still_load() {
+        let mut c = Config::default();
+        for key in [0x41, 0x08, 0x20, 0x70, 0x7c, 0x87, 0xa3] {
+            c.settings.keyboard_key = Some(key);
+            c.validate().unwrap();
+            let loaded: Config = serde_json::from_slice(&serde_json::to_vec(&c).unwrap()).unwrap();
+            assert_eq!(
+                loaded.settings.activation_code(),
+                KEYBOARD_TRIGGER_BASE + key
+            );
+        }
+        for key in [0, 1, 0xe7, 255, 256] {
+            c.settings.keyboard_key = Some(key);
+            assert!(c.validate().is_err());
+        }
+        let mut legacy = serde_json::to_value(Config::default()).unwrap();
+        legacy["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("keyboard_key");
+        let loaded: Config = serde_json::from_value(legacy).unwrap();
+        assert_eq!(
+            loaded.settings.activation_code(),
+            loaded.settings.mouse_button
+        );
     }
     #[test]
     fn rejects_cycles_and_invalid_audio() {

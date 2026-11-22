@@ -138,6 +138,7 @@ fn keyboard(vk: u16, up: bool) -> INPUT {
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
                 wVk: VIRTUAL_KEY(vk),
+                dwExtraInfo: orbit_windows::INJECTED_INPUT_MARKER,
                 dwFlags: if up {
                     KEYEVENTF_KEYUP
                 } else {
@@ -263,6 +264,7 @@ fn execute(
                                 Anonymous: INPUT_0 {
                                     ki: KEYBDINPUT {
                                         wScan: u,
+                                        dwExtraInfo: orbit_windows::INJECTED_INPUT_MARKER,
                                         dwFlags: KEYEVENTF_UNICODE,
                                         ..Default::default()
                                     },
@@ -273,6 +275,7 @@ fn execute(
                                 Anonymous: INPUT_0 {
                                     ki: KEYBDINPUT {
                                         wScan: u,
+                                        dwExtraInfo: orbit_windows::INJECTED_INPUT_MARKER,
                                         dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                                         ..Default::default()
                                     },

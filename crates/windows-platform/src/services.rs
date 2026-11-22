@@ -234,3 +234,18 @@ pub fn cpu_ticks() -> u64 {
         }
     }
 }
+
+pub fn key_name(key: u32) -> String {
+    if (0x70..=0x87).contains(&key) {
+        return format!("F{}", key - 0x6f);
+    }
+    let scan = unsafe { MapVirtualKeyW(key, MAPVK_VK_TO_VSC_EX) };
+    let flags = ((scan & 0xff) << 16) | if scan & 0xff00 != 0 { 1 << 24 } else { 0 };
+    let mut text = [0u16; 128];
+    let length = unsafe { GetKeyNameTextW(flags as i32, &mut text) };
+    if length > 0 {
+        String::from_utf16_lossy(&text[..length as usize])
+    } else {
+        format!("VK 0x{key:02X}")
+    }
+}

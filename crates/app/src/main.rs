@@ -293,7 +293,9 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
             }
             if s.hooks.shared.active.load(Ordering::Acquire) {
                 if state.config.settings.hold
-                    && !(state.config.settings.mouse_button == 3 && !s.held)
+                    && !(state.config.settings.keyboard_key.is_none()
+                        && state.config.settings.mouse_button == 3
+                        && !s.held)
                 {
                     s.held = true;
                     s.press = at;
@@ -362,17 +364,24 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
                 },
             );
         }
-        Input::Learned(button) => {
-            state.config.settings.mouse_button = button;
-            ui.set_mouse_button(button as i32);
+        Input::Learned(trigger) => {
+            close(state, ring);
+            let label = if let Some(key) = trigger.checked_sub(KEYBOARD_TRIGGER_BASE) {
+                state.config.settings.keyboard_key = Some(key);
+                ui.set_trigger_source(1);
+                ui.set_keyboard_key(key as i32);
+                let name = services::key_name(key);
+                ui.set_keyboard_name(name.clone().into());
+                name
+            } else {
+                state.config.settings.keyboard_key = None;
+                state.config.settings.mouse_button = trigger;
+                ui.set_trigger_source(0);
+                ui.set_mouse_button(trigger as i32);
+                ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"][trigger as usize].to_string()
+            };
             let _ = state.writer.save(state.config.clone());
-            ui.set_status(
-                format!(
-                    "Botão configurado: {}",
-                    ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"][button as usize]
-                )
-                .into(),
-            );
+            ui.set_status(format!("Acionamento configurado: {label}").into());
         }
         Input::Release {
             point: released,
@@ -464,7 +473,11 @@ fn arm(state: &mut State, ui: &Editor, ring: &Ring) {
         });
         return;
     }
-    match Hooks::start_with_wake(state.config.settings.mouse_button, true, state.wake.clone()) {
+    match Hooks::start_with_wake(
+        state.config.settings.activation_code(),
+        true,
+        state.wake.clone(),
+    ) {
         Ok((hooks, events)) => {
             hooks.shared.beat();
             hooks.shared.ready.store(true, Ordering::Release);
@@ -485,7 +498,7 @@ fn arm(state: &mut State, ui: &Editor, ring: &Ring) {
                 query: String::new(),
                 origin: 0,
             });
-            ui.set_status("Captura ativa. Abra o anel com o botão do mouse escolhido.".into());
+            ui.set_status("Captura ativa. Abra o anel com o botão ou tecla escolhido.".into());
         }
         Err(e) => {
             state.paused = true;
@@ -901,6 +914,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     if ui_test {
         config.settings.mouse_button = 2;
+        config.settings.keyboard_key = Some(0x7c);
         config.settings.sound_volume = 17;
         config.settings.size = 420.0;
         config.settings.startup = true;
@@ -1017,6 +1031,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         2,
                         "button changed during page creation"
                     );
+                    assert_eq!(ui.get_trigger_source(), 1);
+                    assert_eq!(ui.get_keyboard_key(), 0x7c);
+                    assert_eq!(ui.get_keyboard_name(), "F13");
                     assert_eq!(ui.get_menu_size(), 420);
                     assert_eq!(ui.get_sound_volume(), 17.0);
                     assert!(ui.get_startup());

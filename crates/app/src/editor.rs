@@ -27,6 +27,15 @@ pub fn refresh(ui: &Editor, s: &mut State) {
     ui.set_automatic(s.automatic);
     let settings = &s.config.settings;
     ui.set_mouse_button(settings.mouse_button as i32);
+    ui.set_trigger_source(i32::from(settings.keyboard_key.is_some()));
+    ui.set_keyboard_key(settings.keyboard_key.unwrap_or_default() as i32);
+    ui.set_keyboard_name(
+        settings
+            .keyboard_key
+            .map(services::key_name)
+            .unwrap_or_default()
+            .into(),
+    );
     ui.set_hold(settings.hold);
     ui.set_hold_ms(settings.hold_ms as i32);
     ui.set_distance(settings.distance as f32);
@@ -644,6 +653,8 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         {
             let settings = &mut s.config.settings;
             settings.mouse_button = u.get_mouse_button() as u32;
+            settings.keyboard_key =
+                (u.get_trigger_source() == 1).then_some(u.get_keyboard_key() as u32);
             settings.hold = u.get_hold();
             settings.hold_ms = u.get_hold_ms() as u64;
             settings.distance = u.get_distance() as f64;
@@ -692,7 +703,8 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             if let Some(session) = s.session.as_ref() {
                 session.hooks.shared.learn_button();
                 u.set_status(
-                    "Pressione o botão desejado do mouse nos próximos 10 segundos.".into(),
+                    "Pressione o botão do mouse ou a tecla desejada nos próximos 10 segundos."
+                        .into(),
                 );
             }
         }

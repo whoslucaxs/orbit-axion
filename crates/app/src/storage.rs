@@ -511,11 +511,13 @@ mod tests {
         let s = Store::at(dir.clone()).unwrap();
         let (mut c, _) = s.load().unwrap();
         c.settings.hold = false;
+        c.settings.keyboard_key = Some(0x7c);
         c.settings.background_color = "#464545".into();
         c.settings.opacity = 0.37;
         s.save(&c).unwrap();
         let saved = s.load().unwrap().0.settings;
         assert!(!saved.hold);
+        assert_eq!(saved.keyboard_key, Some(0x7c));
         assert_eq!(saved.background_color, "#464545");
         assert_eq!(saved.opacity, 0.37);
         fs::write(dir.join("config.json"), b"broken").unwrap();

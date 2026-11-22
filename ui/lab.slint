@@ -146,6 +146,9 @@ export component Editor inherits Window {
     in-out property <bool> profile-enabled: true;
     in-out property <bool> automatic: true;
     in-out property <int> mouse-button: 1;
+    in-out property <int> trigger-source: 0;
+    in-out property <int> keyboard-key: 0;
+    in property <string> keyboard-name: "";
     in-out property <bool> hold: true;
     in-out property <int> hold-ms: 220;
     in-out property <float> distance: 48;
@@ -319,9 +322,13 @@ export component Editor inherits Window {
                     Caption { text: (root.en ? "Background opacity: " : "Opacidade do fundo: ") + round(root.glass-strength) + "%"; }
                     Caption { text: root.en ? "0% transparent · 100% solid. Live preview in the panel and ring." : "0% transparente · 100% sólido. Prévia no painel e no anel."; wrap: word-wrap; }
                     Slider { value <=> root.glass-strength; minimum: 0; maximum: 100; }
-                    ComboBox { model: root.en ? ["Middle", "Mouse 4", "Mouse 5", "Left", "Right"] : ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"]; current-index: root.mouse-button; selected(value) => { root.mouse-button = self.current-index; } }
-                    Caption { text: root.en ? "Left/right activation is disabled inside this editor. Extra vendor buttons must be mapped to a standard mouse button." : "Esquerdo/direito não interceptam cliques neste editor. Botões extras do fabricante precisam estar mapeados para um botão padrão do mouse."; wrap: word-wrap; }
-                    Pill { text: root.en ? "Detect mouse button (10 s)" : "Detectar botão do mouse (10 s)"; clicked=>{root.learn-button();} }
+                    Caption { text: root.en ? "Open menu with" : "Abrir menu com"; }
+                    ComboBox { model: root.en ? ["Mouse button", "Keyboard key"] : ["Botão do mouse", "Tecla do teclado"]; current-index: root.trigger-source; selected(value) => { root.trigger-source = self.current-index; } }
+                    if root.trigger-source == 0: ComboBox { model: root.en ? ["Middle", "Mouse 4", "Mouse 5", "Left", "Right"] : ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"]; current-index: root.mouse-button; selected(value) => { root.mouse-button = self.current-index; } }
+                    if root.trigger-source == 0: Caption { text: root.en ? "Left/right activation is disabled inside this editor. Extra vendor buttons must be mapped to a standard mouse button." : "Esquerdo/direito não interceptam cliques neste editor. Botões extras do fabricante precisam estar mapeados para um botão padrão do mouse."; wrap: word-wrap; }
+                    if root.trigger-source == 1: Caption { text: (root.en ? "Key: " : "Tecla: ") + (root.keyboard-name == "" ? (root.en ? "not configured" : "não configurada") : root.keyboard-name); color: Ink.accent; }
+                    if root.trigger-source == 1: Caption { text: root.en ? "Capture a key below. Activation is paused inside this editor to keep typing free; test in another app. One key, without a modifier chord." : "Capture uma tecla abaixo. A ativação fica desabilitada neste editor para você digitar; teste em outro aplicativo. Uma tecla, sem combinação de modificadores."; wrap: word-wrap; }
+                    Pill { text: root.en ? "Capture mouse button or keyboard key (10 s)" : "Capturar botão do mouse ou tecla (10 s)"; clicked=>{root.learn-button();} }
                     CheckBox { text: root.en ? "Hold, move and release (off = click mode)" : "Segurar, mover e soltar (desmarcado = modo clique)"; checked <=> root.hold; }
                     Caption { text: root.en ? "A short tap keeps the menu open. In hold mode, releasing at the center cancels." : "Clique curto mantém o menu aberto. No modo segurar, soltar no centro cancela."; wrap: word-wrap; }
                     SpinBox { value <=> root.hold-ms; minimum: 50; maximum: 2000; }
