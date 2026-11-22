@@ -1,0 +1,28 @@
+[package]
+name = "orbit-axion"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+build = "build.rs"
+default-run = "orbit-axion"
+
+[dependencies]
+orbit-core.workspace = true
+orbit-windows.workspace = true
+orbit-audio.workspace = true
+windows.workspace = true
+raw-window-handle = "0.6.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rfd = { version = "0.18", default-features = false }
+ureq = { version = "3.5", default-features = false, features = ["rustls"] }
+sha2 = "0.10"
+semver = "1"
+base64 = "0.23"
+i-slint-backend-selector = { version = "=1.19.0", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "ico"] }
+slint = { version = "=1.19.0", default-features = false, features = ["std", "backend-winit", "renderer-software", "renderer-femtovg", "compat-1-18", "unstable-winit-030", "system-tray", "accessibility"] }
+
+[build-dependencies]
+slint-build = "=1.19.0"

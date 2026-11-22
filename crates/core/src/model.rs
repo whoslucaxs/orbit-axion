@@ -1,0 +1,514 @@
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Settings {
+    pub mouse_button: u32,
+    pub hold: bool,
+    pub hold_ms: u64,
+    pub distance: f64,
+    pub size: f32,
+    pub opacity: f32,
+    pub theme: String,
+    pub language: String,
+    pub startup: bool,
+    pub sounds: bool,
+    pub sound_volume: u32,
+    pub updates: bool,
+    pub repository: String,
+    pub accent: String,
+    pub automatic_profiles: bool,
+    pub manual_profile: String,
+}
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            mouse_button: 1,
+            hold: true,
+            hold_ms: 220,
+            distance: 48.0,
+            size: 360.0,
+            opacity: 0.92,
+            theme: "system".into(),
+            language: "pt-BR".into(),
+            startup: false,
+            sounds: false,
+            sound_volume: 30,
+            updates: true,
+            repository: "whoslucaxs/orbit-axion".into(),
+            accent: "#00ACAC".into(),
+            automatic_profiles: true,
+            manual_profile: "global".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Config {
+    pub schema_version: u32,
+    pub settings: Settings,
+    pub profiles: Vec<Profile>,
+    pub menus: Vec<Menu>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Profile {
+    pub id: String,
+    pub name: String,
+    pub menu: String,
+    pub executables: Vec<String>,
+    pub priority: i32,
+    pub inherit_global: bool,
+    pub enabled: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Menu {
+    pub id: String,
+    pub name: String,
+    pub slots: [Option<Slot>; 8],
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Slot {
+    pub name: String,
+    pub icon: String,
+    pub confirm: bool,
+    #[serde(default)]
+    pub color: Option<String>,
+    pub action: Action,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Action {
+    Open {
+        target: String,
+    },
+    Launch {
+        program: String,
+        arguments: Vec<String>,
+        elevated: bool,
+    },
+    Shortcut {
+        keys: String,
+    },
+    Text {
+        text: String,
+    },
+    Media {
+        command: String,
+    },
+    Window {
+        command: String,
+    },
+    System {
+        command: String,
+    },
+    Volume {
+        provider: String,
+        target: u8,
+        bus: bool,
+        step: f32,
+        #[serde(default)]
+        endpoint: Option<String>,
+    },
+    Submenu {
+        menu: String,
+    },
+    Macro {
+        steps: Vec<MacroStep>,
+    },
+    Settings,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MacroStep {
+    pub delay_ms: u64,
+    pub action: Action,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        let definitions = [
+            (
+                "Volume Windows",
+                "volume",
+                Action::Volume {
+                    provider: "windows".into(),
+                    target: 0,
+                    bus: false,
+                    step: 2.0,
+                    endpoint: None,
+                },
+            ),
+            (
+                "Reproduzir / pausar",
+                "play",
+                Action::Media {
+                    command: "play_pause".into(),
+                },
+            ),
+            (
+                "Explorador",
+                "folder",
+                Action::Launch {
+                    program: "explorer.exe".into(),
+                    arguments: vec![],
+                    elevated: false,
+                },
+            ),
+            (
+                "Copiar",
+                "copy",
+                Action::Shortcut {
+                    keys: "CTRL+C".into(),
+                },
+            ),
+            (
+                "Colar",
+                "paste",
+                Action::Shortcut {
+                    keys: "CTRL+V".into(),
+                },
+            ),
+            (
+                "Maximizar / restaurar",
+                "window",
+                Action::Window {
+                    command: "maximize_restore".into(),
+                },
+            ),
+            (
+                "Microfone Potato",
+                "mic",
+                Action::Volume {
+                    provider: "voicemeeter_potato".into(),
+                    target: 0,
+                    bus: false,
+                    step: 1.0,
+                    endpoint: None,
+                },
+            ),
+            ("Configurações", "settings", Action::Settings),
+        ];
+        Self {
+            schema_version: 1,
+            settings: Settings::default(),
+            profiles: vec![Profile {
+                id: "global".into(),
+                name: "Global".into(),
+                menu: "global".into(),
+                executables: vec![],
+                priority: 0,
+                inherit_global: false,
+                enabled: true,
+            }],
+            menus: vec![Menu {
+                id: "global".into(),
+                name: "Principal".into(),
+                slots: definitions.map(|(name, icon, action)| {
+                    Some(Slot {
+                        name: name.into(),
+                        icon: icon.into(),
+                        confirm: false,
+                        color: None,
+                        action,
+                    })
+                }),
+            }],
+        }
+    }
+}
+fn action_valid(action: &Action, depth: usize) -> Result<(), String> {
+    if depth > 16 {
+        return Err("Macro aninhada excessivamente".into());
+    }
+    match action {
+        Action::Open { target } if target.trim().is_empty() || target.contains('\0') => {
+            Err("Destino vazio ou inválido".into())
+        }
+        Action::Launch {
+            program, arguments, ..
+        } if program.trim().is_empty()
+            || program.contains('\0')
+            || arguments.iter().any(|a| a.contains('\0')) =>
+        {
+            Err("Programa ou argumentos inválidos".into())
+        }
+        Action::Shortcut { keys } if keys.trim().is_empty() => Err("Atalho vazio".into()),
+        Action::Volume {
+            provider,
+            target,
+            bus,
+            step,
+            endpoint,
+        } => {
+            if endpoint
+                .as_ref()
+                .is_some_and(|e| e.contains('\0') || e.len() > 4096)
+            {
+                return Err("Endpoint inválido".into());
+            }
+            if !["windows", "voicemeeter_potato"].contains(&provider.as_str())
+                || (*provider == "voicemeeter_potato" && *target > if *bus { 4 } else { 7 })
+                || !step.is_finite()
+                || *step <= 0.0
+                || *step > 100.0
+            {
+                Err("Alvo ou passo de volume inválido".into())
+            } else {
+                Ok(())
+            }
+        }
+        Action::Media { command }
+            if !["play_pause", "next", "previous", "stop"].contains(&command.as_str()) =>
+        {
+            Err("Comando de mídia inválido".into())
+        }
+        Action::Window { command }
+            if !["maximize_restore", "minimize", "close"].contains(&command.as_str()) =>
+        {
+            Err("Comando de janela inválido".into())
+        }
+        Action::System { command }
+            if !["lock", "sleep", "shutdown", "restart"].contains(&command.as_str()) =>
+        {
+            Err("Comando de sistema inválido".into())
+        }
+        Action::Macro { steps } => {
+            if steps.is_empty() || steps.len() > 256 {
+                return Err("Macro deve conter 1 a 256 etapas".into());
+            }
+            for s in steps {
+                if s.delay_ms > 600_000 {
+                    return Err("Atraso maior que 10 minutos".into());
+                }
+                if matches!(s.action, Action::Submenu { .. } | Action::Settings) {
+                    return Err("Submenu/configurações não são etapas de macro".into());
+                }
+                action_valid(&s.action, depth + 1)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+impl Config {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema_version != 1 {
+            return Err(format!(
+                "Esquema {} não suportado; configuração preservada",
+                self.schema_version
+            ));
+        }
+        let s = &self.settings;
+        if !valid_color(&s.accent) {
+            return Err("Cor de destaque inválida: use #RRGGBB".into());
+        }
+        if s.mouse_button > 2
+            || !(50..=2000).contains(&s.hold_ms)
+            || !s.distance.is_finite()
+            || !(10.0..=200.0).contains(&s.distance)
+            || !s.size.is_finite()
+            || !(280.0..=640.0).contains(&s.size)
+            || !s.opacity.is_finite()
+            || !(0.3..=1.0).contains(&s.opacity)
+        {
+            return Err("Parâmetros de interação inválidos".into());
+        }
+        if !["pt-BR", "en"].contains(&s.language.as_str())
+            || !["system", "dark", "light"].contains(&s.theme.as_str())
+        {
+            return Err("Idioma ou tema inválido".into());
+        }
+        if self.menus.is_empty() || self.menus.len() > 4096 || self.profiles.len() > 1024 {
+            return Err("Quantidade inválida de menus/perfis".into());
+        }
+        let menus: HashMap<_, _> = self.menus.iter().map(|m| (m.id.as_str(), m)).collect();
+        if menus.len() != self.menus.len() || self.menus.iter().any(|m| m.id.trim().is_empty()) {
+            return Err("IDs de menu vazios/duplicados".into());
+        }
+        let mut profiles = HashSet::new();
+        for p in &self.profiles {
+            if !profiles.insert(&p.id) || p.id.is_empty() || !menus.contains_key(p.menu.as_str()) {
+                return Err("Perfil inválido, duplicado ou com menu ausente".into());
+            }
+        }
+        if !self.profiles.iter().any(|p| p.id == "global" && p.enabled) {
+            return Err("Perfil Global obrigatório e ativo".into());
+        }
+        for m in &self.menus {
+            for slot in m.slots.iter().flatten() {
+                if slot.name.len() > 200 || slot.icon.contains('\0') {
+                    return Err("Nome/ícone inválido".into());
+                }
+                if slot.color.as_ref().is_some_and(|c| !valid_color(c)) {
+                    return Err("Cor do ícone inválida: use #RRGGBB".into());
+                }
+                action_valid(&slot.action, 0)?;
+            }
+        }
+        // Iterative DFS permits deep menus without recursively consuming the call stack.
+        let mut done = HashSet::new();
+        for root in &self.menus {
+            let mut path = HashSet::new();
+            let mut stack = vec![(root.id.as_str(), false)];
+            while let Some((id, exit)) = stack.pop() {
+                if exit {
+                    path.remove(id);
+                    done.insert(id);
+                    continue;
+                }
+                if path.contains(id) {
+                    return Err("Ciclo em submenus".into());
+                }
+                if done.contains(id) {
+                    continue;
+                }
+                let menu = menus.get(id).ok_or("Submenu inexistente")?;
+                path.insert(id);
+                stack.push((id, true));
+                for slot in menu.slots.iter().flatten() {
+                    if let Action::Submenu { menu } = &slot.action {
+                        stack.push((menu, false));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn profile_for(&self, executable: &str) -> &Profile {
+        self.profiles
+            .iter()
+            .filter(|p| {
+                p.id != "global"
+                    && p.executables
+                        .iter()
+                        .any(|e| normalize(e) == normalize(executable))
+            })
+            .max_by_key(|p| p.priority)
+            .unwrap_or_else(|| {
+                self.profiles
+                    .iter()
+                    .find(|p| p.id == "global")
+                    .expect("validated global")
+            })
+    }
+    pub fn menu(&self, id: &str) -> Option<&Menu> {
+        self.menus.iter().find(|m| m.id == id)
+    }
+    pub fn effective_slots(&self, profile: &Profile, menu: &str) -> [Option<Slot>; 8] {
+        let mut slots = self.menu(menu).map(|m| m.slots.clone()).unwrap_or_default();
+        if profile.inherit_global && profile.menu == menu && profile.id != "global" {
+            let global = self
+                .profiles
+                .iter()
+                .find(|p| p.id == "global")
+                .and_then(|p| self.menu(&p.menu));
+            if let Some(g) = global {
+                for (slot, fallback) in slots.iter_mut().zip(&g.slots) {
+                    if slot.is_none() {
+                        *slot = fallback.clone();
+                    }
+                }
+            }
+        }
+        slots
+    }
+    pub fn search(&self, profile: &Profile, query: &str) -> Vec<Slot> {
+        let mut stack = vec![profile.menu.clone()];
+        let mut seen = HashSet::new();
+        let mut hits = vec![];
+        while let Some(id) = stack.pop() {
+            if !seen.insert(id.clone()) {
+                continue;
+            }
+            for s in self.effective_slots(profile, &id).into_iter().flatten() {
+                if let Action::Submenu { menu } = &s.action {
+                    stack.push(menu.clone());
+                } else if let Some(score) = fuzzy(&s.name, query) {
+                    hits.push((score, s));
+                }
+            }
+        }
+        hits.sort_by_key(|h| h.0);
+        hits.into_iter().take(8).map(|h| h.1).collect()
+    }
+}
+fn normalize(s: &str) -> String {
+    s.replace('/', "\\").to_lowercase()
+}
+fn fuzzy(text: &str, query: &str) -> Option<usize> {
+    let t = text.to_lowercase();
+    let q = query.to_lowercase();
+    let mut chars = q.chars();
+    let mut wanted = chars.next()?;
+    let mut score = 0;
+    for (i, c) in t.chars().enumerate() {
+        if c == wanted {
+            score += i;
+            if let Some(n) = chars.next() {
+                wanted = n;
+            } else {
+                return Some(score);
+            }
+        }
+    }
+    None
+}
+
+pub fn valid_color(value: &str) -> bool {
+    value.len() == 7 && value.starts_with('#') && value[1..].chars().all(|c| c.is_ascii_hexdigit())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn defaults_roundtrip_and_profile_fallback() {
+        let c = Config::default();
+        c.validate().unwrap();
+        let json = serde_json::to_vec(&c).unwrap();
+        serde_json::from_slice::<Config>(&json)
+            .unwrap()
+            .validate()
+            .unwrap();
+        assert_eq!(c.profile_for("unknown.exe").id, "global");
+        assert!(!c.search(&c.profiles[0], "vlw").is_empty());
+    }
+    #[test]
+    fn rejects_cycles_and_invalid_audio() {
+        let mut c = Config::default();
+        c.menus[0].slots[0].as_mut().unwrap().action = Action::Submenu {
+            menu: "global".into(),
+        };
+        assert!(c.validate().is_err());
+        c.menus[0].slots[0].as_mut().unwrap().action = Action::Volume {
+            provider: "voicemeeter_potato".into(),
+            target: 8,
+            bus: false,
+            step: 1.0,
+            endpoint: None,
+        };
+        assert!(c.validate().is_err());
+    }
+    #[test]
+    fn inherits_and_matches_executables_by_priority() {
+        let mut c = Config::default();
+        c.menus.push(Menu {
+            id: "work".into(),
+            name: "Work".into(),
+            slots: Default::default(),
+        });
+        c.profiles.push(Profile {
+            id: "work".into(),
+            name: "Work".into(),
+            menu: "work".into(),
+            executables: vec!["C:\\Code.exe".into()],
+            priority: 2,
+            inherit_global: true,
+            enabled: true,
+        });
+        c.validate().unwrap();
+        let p = c.profile_for("c:/CODE.exe");
+        assert_eq!(p.id, "work");
+        assert!(c.effective_slots(p, "work")[0].is_some());
+    }
+}

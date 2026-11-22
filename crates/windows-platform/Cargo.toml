@@ -1,0 +1,11 @@
+[package]
+name = "orbit-windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+orbit-core.workspace = true
+windows.workspace = true
+unicode-normalization = "0.1"

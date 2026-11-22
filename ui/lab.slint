@@ -1,0 +1,346 @@
+export { Palette } from "std-widgets.slint";
+import { Palette, VerticalBox, HorizontalBox, Button, ComboBox, CheckBox, LineEdit, TextEdit, SpinBox, Slider, ScrollView } from "std-widgets.slint";
+export global Ink {
+    in-out property <bool> light: false;
+    changed light => { Palette.color-scheme = light ? ColorScheme.light : ColorScheme.dark; }
+    out property <color> text: light ? #151515 : #DFDEDC;
+    out property <color> muted: light ? #646560 : #A6A7A2;
+    out property <color> canvas: light ? #DFDEDC : #111212;
+    out property <color> surface: light ? #f7f7f4 : #232525;
+    out property <color> edge: light ? #ffffffb0 : #DFDEDC28;
+    in-out property <color> accent: #00ACAC;
+}
+component Pill inherits Rectangle {
+    in property <string> text;
+    in property <bool> accent: false;
+    callback clicked;
+    min-height: 36px; min-width: label.preferred-width + 28px;
+    border-radius: 10px; border-width: 1px;
+    border-color: accent ? Ink.accent.with-alpha(0.5) : Ink.edge;
+    background: touch.pressed ? Ink.accent.with-alpha(0.33) : touch.has-hover ? Ink.accent.with-alpha(0.14) : accent ? Ink.accent.with-alpha(0.19) : Ink.surface;
+    animate background { duration: 110ms; }
+    label := Text { text: root.text; color: root.accent ? Ink.accent : Ink.text; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
+    touch := TouchArea { clicked => { root.clicked(); } }
+    accessible-role: button; accessible-label: root.text; accessible-action-default => { root.clicked(); }
+}
+component Caption inherits Text { color: Ink.muted; font-size: 11px; }
+component Heading inherits Text { color: Ink.text; font-size: 21px; font-weight: 600; }
+export struct RingItem { x: float, y: float, glyph: string, label: string, image: image, filled: bool, tint: color }
+component Face inherits Rectangle {
+    in property<float> zoom: 1;
+    in property <[RingItem]> items;
+    in property <int> selected: -1;
+    in property <bool> interactive: false;
+    in property <string> center-title: "ORBIT AXION";
+    in property <string> center-text: "";
+    in property <float> glass-opacity: 0.92;
+    callback pick(int);
+    callback reorder(int,float,float);
+    background: transparent;
+    Rectangle { x: parent.width / 2 - 152px * root.zoom; y: parent.height / 2 - 152px * root.zoom; width: 304px * root.zoom; height: 304px * root.zoom;
+        border-radius: 152px * root.zoom; border-width: 1px; border-color: Ink.edge;
+        background: @linear-gradient(115deg, Ink.surface.with-alpha(root.glass-opacity), Ink.canvas.with-alpha(root.glass-opacity));
+        drop-shadow-blur: 22px; drop-shadow-offset-y: 8px; drop-shadow-color: #00000030;
+        Rectangle { x: 62px * root.zoom; y: 1px; width: 180px * root.zoom; height: 1px; background: #DFDEDC35; }
+    }
+    for item[i] in root.items: Rectangle {
+        x: parent.width / 2 + item.x * 1px * root.zoom - 29px * root.zoom; y: parent.height / 2 + item.y * 1px * root.zoom - 29px * root.zoom;
+        width: 58px * root.zoom; height: 58px * root.zoom; border-radius: 29px * root.zoom; border-width: 1px;
+        border-color: root.selected == i ? Ink.accent : Ink.edge;
+        background: root.selected == i ? Ink.accent.with-alpha(0.2) : @linear-gradient(120deg, Ink.surface.brighter(12%).with-alpha(0.95), Ink.surface.with-alpha(0.72));
+        animate background { duration: 100ms; }
+        Text { visible: item.image.width == 0; text: item.glyph; color: root.selected == i ? Ink.accent : item.filled ? (item.tint.alpha > 0 ? item.tint : Ink.text) : Ink.muted.with-alpha(0.5); font-family: "Segoe Fluent Icons"; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
+        Image { visible: item.image.width > 0; source: item.image; x: 16px * root.zoom; y: 16px * root.zoom; width: 26px * root.zoom; height: 26px * root.zoom; image-fit: contain; }
+        area := TouchArea { enabled: root.interactive;
+            clicked => { root.pick(i); }
+            pointer-event(e) => { if e.kind == PointerEventKind.up { root.reorder(i, self.mouse-x / 1px + item.x - 29, self.mouse-y / 1px + item.y - 29); } }
+        }
+    }
+    Rectangle { x: parent.width / 2 - 70px * root.zoom; y: parent.height / 2 - 48px * root.zoom; width: 140px * root.zoom; height: 96px * root.zoom; background: transparent;
+        VerticalLayout { padding: 3px; spacing: 5px;
+            Text { text: root.center-title; color: Ink.accent; font-size: 10px * root.zoom; font-weight: 600; horizontal-alignment: center; }
+            Text { text: root.center-text; color: Ink.text; font-size: 14px * root.zoom; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: "ORBIT / 08"; color: Ink.muted; font-size: 9px * root.zoom; horizontal-alignment: center; }
+        }
+    }
+}
+export component Ring inherits Window {
+    in property<float> zoom: 1;
+    in property <[RingItem]> items;
+    title: "Orbit Axion · Ring"; width: 360px * root.zoom; height: 360px * root.zoom; no-frame: true; background: transparent;
+    in property <int> selected: -1;
+    in property <string> level;
+    in property <string> query;
+    in property <string> profile-name;
+    in property <float> glass-opacity: 0.92;
+    Face { zoom: root.zoom; items: root.items; selected: root.selected; glass-opacity: root.glass-opacity;
+        center-title: root.query != "" ? "BUSCA / SEARCH" : root.profile-name;
+        center-text: root.query != "" ? root.query : root.selected >= 0 ? root.items[root.selected].label + (root.level != "" ? "\n" + root.level : "") : "Orbit Axion";
+    }
+}
+export component Tray inherits SystemTrayIcon {
+    in property <bool> en: false;
+    in property <bool> paused: false;
+    in property <image> tray-image;
+    icon: tray-image; tooltip: "Orbit Axion";
+    callback open-editor;
+    callback toggle;
+    callback quit;
+    clicked => { root.open-editor(); }
+    Menu {
+        MenuItem { title: root.en ? "Open Orbit Axion" : "Abrir Orbit Axion"; activated => { root.open-editor(); } }
+        MenuItem { title: root.paused ? (root.en ? "Resume" : "Retomar") : (root.en ? "Pause capture" : "Pausar captura"); activated => { root.toggle(); } }
+        MenuSeparator {}
+        MenuItem { title: root.en ? "Quit" : "Sair"; activated => { root.quit(); } }
+    }
+}
+export component Editor inherits Window {
+    in property<string> notice;
+    init => { Palette.color-scheme = ColorScheme.dark; }
+    in property <[RingItem]> items;
+    title: "Orbit Axion"; preferred-width: 1160px; preferred-height: 800px; min-width: 1080px; min-height: 760px;
+    background: Ink.canvas;
+    in property <[string]> profiles;
+    in property <[string]> menus;
+    in-out property <int> profile-index: 0;
+    in-out property <int> menu-index: 0;
+    in-out property <int> slot-index: 0;
+    in property <bool> armed: false;
+    in-out property <bool> en: false;
+    in-out property <int> page: 0;
+    in property <string> status: "";
+    in property <string> diagnostic;
+    in property <string> update-status;
+    in-out property<string> menu-name;
+    in property<string> technical-log;
+    in-out property <string> slot-name;
+    in-out property <int> action-type: 0;
+    in-out property <string> target;
+    in-out property <string> arguments;
+    in-out property <string> shortcut;
+    in-out property <string> text-value;
+    in-out property <int> command-index: 0;
+    in-out property <int> audio-provider: 0;
+    in property<[string]> strip-labels: ["Strip 0","Strip 1","Strip 2","Strip 3","Strip 4","Strip 5","Strip 6","Strip 7"];
+    in property<[string]> bus-labels: ["Bus 0","Bus 1","Bus 2","Bus 3","Bus 4"];
+    in property<[string]> audio-endpoints: ["Padrão / Default"];
+    in-out property<int> audio-endpoint: 0;
+    in-out property <int> audio-target: 0;
+    in-out property <float> audio-step: 2;
+    in-out property <bool> confirm: false;
+    in-out property <bool> elevated: false;
+    in-out property <int> submenu-index: 0;
+    in-out property <string> icon-name;
+    in-out property<string> icon-color;
+    in-out property<string> accent-hex: "#00ACAC";
+    in-out property <string> profile-name;
+    in-out property <string> executables;
+    in-out property <int> priority: 0;
+    in-out property <bool> inherit: true;
+    in-out property <bool> profile-enabled: true;
+    in-out property <bool> automatic: true;
+    in-out property <int> mouse-button: 1;
+    in-out property <bool> hold: true;
+    in-out property <int> hold-ms: 220;
+    in-out property <float> distance: 48;
+    in-out property <float> glass-strength: 92;
+    in-out property <int> theme: 0;
+    in-out property <bool> startup: false;
+    in-out property <bool> sounds: false;
+    in-out property<float> sound-volume: 30;
+    in-out property<int> menu-size: 360;
+    in-out property <bool> updates: true;
+    in-out property <string> repository: "whoslucaxs/orbit-axion";
+    in property <[string]> macro-steps;
+    in-out property <int> macro-index: 0;
+    in-out property <int> macro-kind: 0;
+    in property<[string]> macro-source-names;
+    in-out property<int> macro-source-slot: 0;
+    in-out property <int> macro-delay: 100;
+    in-out property <string> macro-value;
+    callback switch-profile(int);
+    callback switch-menu(int);
+    callback pick-slot(int);
+    callback reorder(int,float,float);
+    callback rename-menu;
+    callback delete-menu;
+    callback preview-slot;
+    callback macro-update;
+    callback save-slot;
+    callback refresh-audio;
+    callback browse-target;
+    callback import-icon;
+    callback new-profile;
+    callback duplicate-profile;
+    callback delete-profile;
+    callback save-profile;
+    callback browse-executable;
+    callback new-menu;
+    callback save-settings;
+    callback learn-button;
+    callback toggle-capture;
+    callback import-config;
+    callback export-config;
+    callback export-profile;
+    callback restore-backup;
+    callback reset-defaults;
+    callback show-data;
+    callback diagnostics-export;
+    callback check-updates;
+    callback install-update;
+    callback cancel-macro;
+    callback macro-add;
+    callback macro-remove;
+    callback macro-up;
+    callback pump;
+    HorizontalLayout {
+        Rectangle { width: 204px; background: Ink.surface.with-alpha(0.55);
+            Rectangle { x: parent.width - 1px; width: 1px; background: Ink.edge; }
+            VerticalLayout { padding: 22px; spacing: 10px;
+                Text { text: "◎"; color: Ink.accent; font-size: 40px; height: 58px; }
+                Text { text: "Orbit Axion"; color: Ink.text; font-size: 22px; font-weight: 600; }
+                Caption { text: "YOUR FLOW, IN ORBIT"; height: 32px; font-size: 9px; }
+                for name[i] in [root.en ? "Menus & actions" : "Menus e ações", root.en ? "Profiles" : "Perfis", root.en ? "Appearance" : "Preferências", root.en ? "Diagnostics" : "Diagnóstico"]: Pill { text: name; accent: root.page == i; clicked => { root.page = i; } }
+                Rectangle { vertical-stretch: 1; background: transparent; }
+                Caption { text: root.armed ? (root.en ? "●  Capture active" : "●  Captura ativa") : (root.en ? "○  Capture paused" : "○  Captura pausada"); color: root.armed ? Ink.accent : Ink.muted; }
+                Pill { text: root.armed ? (root.en ? "Pause" : "Pausar") : (root.en ? "Resume" : "Retomar"); clicked => { root.toggle-capture(); } }
+                Caption { text: "Rust + Slint / GPL v3"; height: 24px; font-size: 10px; }
+            }
+        }
+        VerticalLayout { padding: 28px; spacing: 18px;
+            HorizontalLayout {
+                VerticalLayout { spacing: 5px;
+                    Caption { text: root.en ? "WORKSPACE / PERSONAL" : "ESPAÇO / PESSOAL"; color: Ink.accent; }
+                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
+                }
+                Pill { text: root.en ? "Export" : "Exportar"; clicked => { root.export-config(); } }
+                Pill { text: root.en ? "Import" : "Importar"; clicked => { root.import-config(); } }
+            }
+            if root.page == 0: HorizontalLayout { spacing: 22px;
+                Rectangle { horizontal-stretch: 1; min-width: 350px; border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: @linear-gradient(130deg, Ink.surface.with-alpha(0.82), Ink.surface.with-alpha(0.32));
+                    VerticalLayout { padding: 18px; spacing: 12px;
+                        HorizontalLayout {
+                            ComboBox { model: root.profiles; current-index: root.profile-index; selected(value) => { root.profile-index = self.current-index; root.switch-profile(self.current-index); } }
+                            ComboBox { model: root.menus; current-index: root.menu-index; selected(value) => { root.menu-index = self.current-index; root.switch-menu(self.current-index); } }
+                        }
+                        Face { glass-opacity: root.glass-strength / 100; min-width: 320px; min-height: 342px; items: root.items; selected: root.slot-index; interactive: true; center-title: "LIVE PREVIEW"; center-text: root.items[root.slot-index].label; pick(i) => { root.pick-slot(i); } reorder(i,x,y) => { root.reorder(i,x,y); } }
+                        Caption { text: root.en ? "Eight positions. Drag an icon to reorder." : "Oito posições. Arraste um ícone para reorganizar."; horizontal-alignment: center; wrap: word-wrap; }
+                        LineEdit { text <=> root.menu-name; placeholder-text: root.en ? "Menu name" : "Nome do menu"; }
+                        HorizontalBox { padding: 0px; Pill { text: root.en ? "Rename" : "Renomear"; clicked=>{root.rename-menu();} } Pill { text: root.en ? "Remove menu" : "Remover menu"; clicked=>{root.delete-menu();} } }
+                        Pill { text: root.en ? "+ New submenu" : "+ Novo submenu"; clicked => { root.new-menu(); } }
+                        Rectangle { vertical-stretch: 1; background: transparent; }
+                        Caption { text: root.en ? "Open with your mouse. Scroll over volume to adjust it." : "Abra com o mouse. Role sobre um ícone de volume para ajustar."; wrap: word-wrap; }
+                    }
+                }
+                Rectangle { width: 342px; border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);
+                    ScrollView { VerticalBox { padding: 18px; spacing: 10px;
+                        Caption { text: (root.en ? "POSITION " : "POSIÇÃO ") + (root.slot-index + 1); color: Ink.accent; }
+                        LineEdit { text <=> root.slot-name; placeholder-text: root.en ? "Action name" : "Nome da ação"; edited=>{root.preview-slot();} }
+                        ComboBox { model: root.en ? ["Empty", "Open app / command", "Website / file / folder", "Keyboard shortcut", "Insert text", "Media", "Window", "System", "Volume", "Submenu", "Macro", "Settings"] : ["Vazia", "Aplicativo / comando", "Site / arquivo / pasta", "Atalho de teclado", "Inserir texto", "Mídia", "Janela", "Sistema", "Volume", "Submenu", "Macro", "Configurações"]; current-index: root.action-type; selected(value) => { root.action-type = self.current-index; } }
+                        if root.action-type == 1 || root.action-type == 2: VerticalBox { padding: 0px; spacing: 7px;
+                            LineEdit { text <=> root.target; placeholder-text: root.en ? "Path or URL" : "Caminho ou URL"; }
+                            Pill { text: root.en ? "Browse…" : "Selecionar…"; clicked => { root.browse-target(); } }
+                            if root.action-type == 1: LineEdit { text <=> root.arguments; placeholder-text: root.en ? "Arguments separated by |" : "Argumentos separados por |"; }
+                            if root.action-type == 1: CheckBox { text: root.en ? "Run elevated (UAC)" : "Executar elevado (UAC)"; checked <=> root.elevated; }
+                        }
+                        if root.action-type == 3: LineEdit { text <=> root.shortcut; placeholder-text: "CTRL+SHIFT+S"; }
+                        if root.action-type == 4: TextEdit { text <=> root.text-value; min-height: 110px; }
+                        if root.action-type == 5: ComboBox { model: root.en ? ["Play / pause", "Next", "Previous", "Stop"] : ["Reproduzir / pausar", "Próxima", "Anterior", "Parar"]; current-index: root.command-index; selected(value) => { root.command-index = self.current-index; } }
+                        if root.action-type == 6: ComboBox { model: root.en ? ["Maximize / restore", "Minimize", "Close"] : ["Maximizar / restaurar", "Minimizar", "Fechar"]; current-index: root.command-index; selected(value) => { root.command-index = self.current-index; } }
+                        if root.action-type == 7: ComboBox { model: root.en ? ["Lock", "Sleep", "Shut down", "Restart"] : ["Bloquear", "Suspender", "Desligar", "Reiniciar"]; current-index: root.command-index; selected(value) => { root.command-index = self.current-index; } }
+                        if root.action-type == 8: VerticalBox { padding: 0px; spacing: 8px;
+                            ComboBox { model: ["Windows Master", "Potato / Strip", "Potato / Bus"]; current-index: root.audio-provider; selected(value) => { root.audio-provider = self.current-index; } }
+                            if root.audio-provider == 0: ComboBox { model: root.audio-endpoints; current-index: root.audio-endpoint; selected(value)=>{root.audio-endpoint=self.current-index;} }
+                            Caption { text: root.en ? "Channel index / step" : "Índice do canal / passo"; }
+                            if root.audio-provider != 0: ComboBox { model: root.audio-provider == 2 ? root.bus-labels : root.strip-labels; current-index: root.audio-target; selected(value)=>{root.audio-target=self.current-index;} }
+                            Pill { text: root.en ? "Refresh audio targets" : "Atualizar alvos de áudio"; clicked=>{root.refresh-audio();} }
+                            Slider { value <=> root.audio-step; minimum: 0.5; maximum: 10; }
+                            Caption { text: root.audio-step + (root.audio-provider == 0 ? "% / notch" : " dB / notch"); }
+                        }
+                        if root.action-type == 9: ComboBox { model: root.menus; current-index: root.submenu-index; selected(value) => { root.submenu-index = self.current-index; } }
+                        if root.action-type == 10: VerticalBox { padding: 0px; spacing: 8px;
+                            ComboBox { model: root.macro-steps; current-index: root.macro-index; selected(value) => { root.macro-index = self.current-index; } }
+                            ComboBox { model: root.en ? ["Shortcut", "Text", "Open", "Command", "Copy slot action"] : ["Atalho", "Texto", "Abrir", "Comando", "Copiar ação de posição"]; current-index: root.macro-kind; selected(value) => { root.macro-kind = self.current-index; } }
+                            if root.macro-kind == 4: ComboBox { model: root.macro-source-names; current-index: root.macro-source-slot; selected(value)=>{root.macro-source-slot=self.current-index;} }
+                            LineEdit { text <=> root.macro-value; placeholder-text: root.en ? "Step value" : "Valor da etapa"; }
+                            SpinBox { value <=> root.macro-delay; minimum: 0; maximum: 600000; }
+                            HorizontalBox { padding: 0px; Pill { text: "+"; clicked => { root.macro-add(); } } Pill { text: "−"; clicked => { root.macro-remove(); } } Pill { text: "↑"; clicked => { root.macro-up(); } } }
+                        }
+                        if root.action-type == 10: Pill { text: root.en ? "Update selected step" : "Atualizar etapa selecionada"; clicked=>{root.macro-update();} }
+                        Caption { text: root.en ? "Icon (library name or imported file)" : "Ícone (nome da biblioteca ou arquivo)"; wrap: word-wrap; }
+                        LineEdit { text <=> root.icon-name; placeholder-text: "volume · mic · play · folder · copy · settings"; }
+                        Pill { text: root.en ? "Import icon…" : "Importar ícone…"; clicked => { root.import-icon(); } }
+                        LineEdit { text <=> root.icon-color; placeholder-text: root.en ? "Icon color #RRGGBB (blank = automatic)" : "Cor do ícone #RRGGBB (vazio = automático)"; }
+                        CheckBox { text: root.en ? "Confirm before executing" : "Confirmar antes de executar"; checked <=> root.confirm; }
+                        Pill { text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
+                        if root.action-type == 1: Caption { text: root.en ? "Commands and scripts can modify your files and system. Review the target and arguments." : "Comandos e scripts podem alterar arquivos e o sistema. Revise o destino e os argumentos."; wrap: word-wrap; }
+                        Caption { text: root.en ? "Text and commands are stored locally, without encryption." : "Textos e comandos ficam salvos localmente, sem criptografia."; wrap: word-wrap; }
+                    } }
+                }
+            }
+            if root.page == 1: Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);
+                VerticalBox { padding: 24px; spacing: 15px;
+                    ComboBox { model: root.profiles; current-index: root.profile-index; selected(value) => { root.profile-index = self.current-index; root.switch-profile(self.current-index); } }
+                    Pill { text: root.en ? "Export this profile" : "Exportar este perfil"; clicked=>{root.export-profile();} }
+                    LineEdit { text <=> root.profile-name; placeholder-text: root.en ? "Profile name" : "Nome do perfil"; }
+                    TextEdit { text <=> root.executables; min-height: 100px; }
+                    Pill { text: root.en ? "Add executable…" : "Adicionar executável…"; clicked => { root.browse-executable(); } }
+                    Caption { text: root.en ? "Priority (larger wins when rules overlap)" : "Prioridade (maior vence quando regras coincidem)"; }
+                    SpinBox { value <=> root.priority; minimum: -999; maximum: 999; }
+                    CheckBox { text: root.en ? "Inherit empty slots from Global" : "Herdar posições vazias do Global"; checked <=> root.inherit; }
+                    CheckBox { text: root.en ? "Enable capture for this profile / game" : "Habilitar captura neste perfil / jogo"; checked <=> root.profile-enabled; }
+                    CheckBox { text: root.en ? "Select profile automatically by executable" : "Selecionar perfil automaticamente por executável"; checked <=> root.automatic; }
+                    HorizontalBox { padding: 0px;
+                        Pill { text: root.en ? "New" : "Novo"; clicked => { root.new-profile(); } }
+                        Pill { text: root.en ? "Duplicate" : "Duplicar"; clicked => { root.duplicate-profile(); } }
+                        Pill { text: root.en ? "Remove" : "Remover"; clicked => { root.delete-profile(); } }
+                        Pill { text: root.en ? "Save profile" : "Salvar perfil"; accent: true; clicked => { root.save-profile(); } }
+                    }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                }
+            }
+            if root.page == 2: Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);
+                ScrollView { VerticalBox { padding: 24px; spacing: 13px;
+                    Heading { text: root.en ? "Inked / subtle glass" : "Inked / vidro sutil"; }
+                    HorizontalBox { padding: 0px; for tint in [#000000,#DFDEDC,#A6A7A2,#464545,#00ACAC]: Rectangle { height: 34px; border-radius: 8px; background: tint; border-width: 1px; border-color: Ink.edge; } }
+                    LineEdit { text <=> root.accent-hex; placeholder-text: "#00ACAC"; }
+                    ComboBox { model: root.en ? ["Follow Windows", "Dark", "Light"] : ["Seguir Windows", "Escuro", "Claro"]; current-index: root.theme; selected(value) => { root.theme = self.current-index; } }
+                    Caption { text: root.en ? "Menu diameter (logical pixels)" : "Diâmetro do menu (pixels lógicos)"; }
+                    SpinBox { value <=> root.menu-size; minimum: 280; maximum: 640; }
+                    Caption { text: root.en ? "Glass opacity" : "Opacidade do vidro"; }
+                    Slider { value <=> root.glass-strength; minimum: 30; maximum: 100; }
+                    ComboBox { model: ["Meio / Middle", "Mouse 4", "Mouse 5"]; current-index: root.mouse-button; selected(value) => { root.mouse-button = self.current-index; } }
+                    Pill { text: root.en ? "Detect mouse button (10 s)" : "Detectar botão do mouse (10 s)"; clicked=>{root.learn-button();} }
+                    CheckBox { text: root.en ? "Hold, move and release" : "Segurar, mover e soltar"; checked <=> root.hold; }
+                    SpinBox { value <=> root.hold-ms; minimum: 50; maximum: 2000; }
+                    Caption { text: root.en ? "Minimum gesture distance" : "Distância mínima do gesto"; }
+                    Slider { value <=> root.distance; minimum: 10; maximum: 180; }
+                    CheckBox { text: "English interface"; checked <=> root.en; }
+                    CheckBox { text: root.en ? "Start with Windows" : "Iniciar com o Windows"; checked <=> root.startup; }
+                    CheckBox { text: root.en ? "Subtle sound feedback" : "Feedback sonoro discreto"; checked <=> root.sounds; }
+                    Slider { value <=> root.sound-volume; minimum: 0; maximum: 100; }
+                    CheckBox { text: root.en ? "Check for updates automatically" : "Verificar atualizações automaticamente"; checked <=> root.updates; }
+                    LineEdit { text <=> root.repository; placeholder-text: "owner/repository"; }
+                    Pill { text: root.en ? "Apply preferences" : "Aplicar preferências"; accent: true; clicked => { root.save-settings(); } }
+                } }
+            }
+            if root.page == 3: Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);
+                VerticalBox { padding: 24px; spacing: 15px;
+                    Heading { text: root.en ? "Local, observable, yours." : "Local, observável, seu."; }
+                    Text { text: root.diagnostic; color: Ink.text; wrap: word-wrap; }
+                    Caption { text: root.update-status; wrap: word-wrap; }
+                    HorizontalBox { padding: 0px; Pill { text: root.en ? "Check updates" : "Buscar atualização"; clicked => { root.check-updates(); } } Pill { text: root.en ? "Install update…" : "Instalar atualização…"; clicked => { root.install-update(); } } }
+                    HorizontalBox { padding: 0px; Pill { text: root.en ? "Restore backup" : "Restaurar backup"; clicked => { root.restore-backup(); } } Pill { text: root.en ? "Defaults" : "Padrões"; clicked => { root.reset-defaults(); } } }
+                    ScrollView { min-height: 100px; Text { text: root.technical-log; color: Ink.muted; font-size: 10px; wrap: word-wrap; } }
+                    Pill { text: root.en ? "Open local data" : "Abrir dados locais"; clicked => { root.show-data(); } }
+                    Pill { text: root.en ? "Export diagnostic" : "Exportar diagnóstico"; clicked => { root.diagnostics-export(); } }
+                    Pill { text: root.en ? "Cancel running macro" : "Cancelar macro em execução"; clicked => { root.cancel-macro(); } }
+                    Caption { text: root.en ? "No telemetry. No action history. No cloud configuration." : "Sem telemetria. Sem histórico de ações. Sem configuração na nuvem."; wrap: word-wrap; }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                }
+            }
+            if root.notice != "": Text { text: root.notice; color: Ink.muted; font-size: 12px; wrap: word-wrap; }
+            Text { text: root.status; color: Ink.accent; font-size: 12px; wrap: word-wrap; min-height: 30px; }
+        }
+    }
+}
