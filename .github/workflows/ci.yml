@@ -1,9 +1,20 @@
 name: Rust Windows
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    paths-ignore: ['README.md', 'CHANGELOG.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['README.md', 'CHANGELOG.md', 'docs/**']
+  workflow_dispatch:
+    inputs:
+      upload_artifacts:
+        description: 'Enviar EXE/MSI para o armazenamento do Actions (requer cota disponível)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   check:
+    name: Validate and package Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,16 +24,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
-      - run: cargo test --locked --workspace --all-targets
-      - run: cargo build --locked --release -p orbit-axion --bins
-      - run: python packaging/windows-msi/collect_notices.py
-      - run: python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.9-x64.msi 0.2.9
-      - uses: actions/upload-artifact@v4
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Run unit tests
+        run: cargo test --locked --workspace --all-targets
+      - name: Build Windows executables
+        run: cargo build --locked --release -p orbit-axion --bins
+      - name: Package and verify MSI
+        shell: pwsh
+        run: |
+          $orbitVersion = python -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python packaging/windows-msi/collect_notices.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe "dist/OrbitAxion-$orbitVersion-x64.msi" $orbitVersion
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item target/release/orbit-axion.exe "dist/OrbitAxion-$orbitVersion.exe"
+          Get-FileHash "dist/OrbitAxion-$orbitVersion.exe", "dist/OrbitAxion-$orbitVersion-x64.msi" -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Set-Content dist/SHA256SUMS.txt
+          "## Orbit Axion $orbitVersion" >> $env:GITHUB_STEP_SUMMARY
+          "Compilação, testes e verificação do conteúdo do MSI concluídos." >> $env:GITHUB_STEP_SUMMARY
+          "Upload é opcional: execute manualmente com upload_artifacts habilitado e cota disponível." >> $env:GITHUB_STEP_SUMMARY
+          Get-Content dist/SHA256SUMS.txt >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload packages (manual opt-in)
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: OrbitAxion-windows-x64
+          retention-days: 3
+          if-no-files-found: error
           path: |
-            dist/OrbitAxion-0.2.9-x64.msi
+            dist/OrbitAxion-*.msi
+            dist/OrbitAxion-*.exe
             dist/THIRD_PARTY_NOTICES.txt
-            target/release/orbit-axion.exe
+            dist/SHA256SUMS.txt
