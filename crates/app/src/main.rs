@@ -1,8 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod audio_worker;
+mod color_picker;
 mod editor;
 mod executor;
 mod feedback;
+mod icon_catalog;
 mod icons;
 #[cfg(debug_assertions)]
 mod interaction_test;
@@ -35,6 +37,7 @@ struct Session {
     press: Instant,
     gesture: Gesture,
     wheel_slot: Option<usize>,
+    submenu_hover: Option<(usize, Instant)>,
     center: Point,
     scale: f64,
     held: bool,
@@ -113,9 +116,17 @@ fn menu_style_from_ui(ui: &Editor) -> MenuStyle {
         selection_border: ui.get_menu_selection_border_hex().trim().to_string(),
         shadow: ui.get_menu_shadow_hex().trim().to_string(),
         opacity: ui.get_menu_opacity() / 100.0,
+        center_background: ui.get_menu_center_background_hex().to_string(),
+        center_border: ui.get_menu_center_border_hex().to_string(),
+        glass_highlight: ui.get_menu_glass_highlight_hex().to_string(),
+        center_radius: ui.get_menu_center_radius(),
+        liquid_glass: ui.get_menu_liquid_glass(),
+        glass_strength: ui.get_menu_glass_strength() / 100.0,
     }
 }
 fn preview_background(ui: &Editor, ring: &Ring) {
+    ui.global::<Ink>()
+        .set_liquid_glass(ui.get_app_liquid_glass());
     let value = ui.get_background_hex().trim().to_string();
     if value.is_empty() || valid_color(&value) {
         let ink = ui.global::<Ink>();
@@ -123,6 +134,9 @@ fn preview_background(ui: &Editor, ring: &Ring) {
         if !value.is_empty() {
             ink.set_background_color(color(&value));
         }
+    }
+    if valid_color(&ui.get_accent_hex()) {
+        ui.global::<Ink>().set_accent(color(&ui.get_accent_hex()));
     }
     let style = menu_style_from_ui(ui);
     for ink in [ui.global::<MenuInk>(), ring.global::<MenuInk>()] {
@@ -160,9 +174,25 @@ fn preview_background(ui: &Editor, ring: &Ring) {
             ink.set_shadow(menu_color(&style.shadow));
         }
         ink.set_opacity(style.opacity);
+        if valid_menu_color(&style.center_background) {
+            ink.set_center_background(menu_color(&style.center_background));
+        }
+        if valid_menu_color(&style.center_border) {
+            ink.set_center_border(menu_color(&style.center_border));
+        }
+        if valid_menu_color(&style.glass_highlight) {
+            ink.set_glass_highlight(menu_color(&style.glass_highlight));
+        }
+        ink.set_center_radius(style.center_radius);
+        ink.set_liquid_glass(style.liquid_glass);
+        ink.set_glass_strength(style.glass_strength);
     }
+    color_picker::update_swatches(ui);
 }
 fn glyph(name: &str) -> &'static str {
+    if let Some(entry) = icon_catalog::find(name) {
+        return &entry.glyph;
+    }
     match name {
         "volume" => "\u{e767}",
         "mic" => "\u{e720}",
@@ -192,6 +222,20 @@ fn items(slots: &[Option<Slot>; 8], icons: &mut icons::Icons) -> ModelRc<RingIte
                     x: x as f32,
                     y: y as f32,
                     glyph: glyph(name).into(),
+                    family: icon_catalog::find(name)
+                        .map_or("Segoe Fluent Icons", |entry| entry.family.as_str())
+                        .into(),
+                    custom_icon: slot.is_some_and(|s| s.color.is_some()),
+                    custom_background: slot.is_some_and(|s| s.background_color.is_some()),
+                    custom_border: slot.is_some_and(|s| s.border_color.is_some()),
+                    background_color: slot
+                        .and_then(|s| s.background_color.as_deref())
+                        .map(menu_color)
+                        .unwrap_or_default(),
+                    border_color: slot
+                        .and_then(|s| s.border_color.as_deref())
+                        .map(menu_color)
+                        .unwrap_or_default(),
                     label: slot.map_or("Vazia / Empty", |s| s.name.as_str()).into(),
                     image: if std::path::Path::new(name).is_absolute() {
                         icons.get(name)
@@ -201,7 +245,7 @@ fn items(slots: &[Option<Slot>; 8], icons: &mut icons::Icons) -> ModelRc<RingIte
                     filled: slot.is_some(),
                     tint: slot
                         .and_then(|s| s.color.as_deref())
-                        .map(color)
+                        .map(menu_color)
                         .unwrap_or_default(),
                 }
             })
@@ -297,9 +341,11 @@ fn choose(state: &mut State, ui: &Editor, ring: &Ring, selected: Option<usize>) 
             let s = state.session.as_mut().unwrap();
             s.stack.push(menu.clone());
             s.query.clear();
-            s.held = false;
-            s.gesture.reset();
+            s.submenu_hover = None;
+            s.selected = None;
+            s.gesture.reset_remainder();
             refresh_ring(state, ring);
+            ring.set_selected(-1);
         }
         Action::Settings => {
             close(state, ring);
@@ -472,19 +518,21 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
         } => {
             s.held = false;
             if state.config.settings.hold
-                && at.saturating_duration_since(s.press)
+                && (at.saturating_duration_since(s.press)
                     >= Duration::from_millis(state.config.settings.hold_ms)
+                    || s.stack.len() > 1)
             {
                 if s.gesture.release(Some(0)).is_none() {
                     close(state, ring);
                 } else {
                     let selected = if s.query.is_empty() {
                         let (x, y) = point(s, released);
-                        direction(x, y, state.config.settings.distance)
+                        direction(x, y, state.config.settings.gesture_distance())
                     } else {
                         s.selected
                     };
                     choose(state, ui, ring, selected);
+                    close(state, ring);
                 }
             }
         }
@@ -570,6 +618,7 @@ fn arm(state: &mut State, ui: &Editor, ring: &Ring) {
                 press: Instant::now(),
                 gesture: Gesture::default(),
                 wheel_slot: None,
+                submenu_hover: None,
                 center: Point::default(),
                 scale: 1.0,
                 held: false,
@@ -755,6 +804,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
     // Opening/showing windows can dispatch native events; use a fresh foreground snapshot.
     let foreground = native::foreground();
     let mut should_close = false;
+    let mut enter_submenu = None;
     if let Some(s) = state.session.as_mut() {
         if !s.hooks.shared.ready.load(Ordering::Acquire) {
             should_close = true;
@@ -774,11 +824,31 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
                 }
                 let previous = s.selected;
                 s.selected = if state.config.settings.hold && s.held {
-                    direction(x, y, state.config.settings.distance)
+                    direction(x, y, state.config.settings.gesture_distance())
                 } else {
                     icon_at(x, y)
                 };
                 ring.set_selected(s.selected.map_or(-1, |i| i as i32));
+                let candidate = s.selected.filter(|&i| {
+                    state.config.settings.hold
+                        && s.held
+                        && s.slots[i]
+                            .as_ref()
+                            .is_some_and(|slot| matches!(slot.action, Action::Submenu { .. }))
+                });
+                if let Some(i) = candidate {
+                    match s.submenu_hover {
+                        Some((previous, since)) if previous == i => {
+                            if since.elapsed() >= Duration::from_millis(300) {
+                                enter_submenu = Some(i);
+                            }
+                        }
+                        _ => s.submenu_hover = Some((i, Instant::now())),
+                    }
+                } else {
+                    s.submenu_hover = None;
+                }
+
                 if previous != s.selected && s.selected.is_some() && state.config.settings.sounds {
                     state.feedback.play(2);
                 }
@@ -798,6 +868,8 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
     }
     if should_close {
         close(state, ring);
+    } else if let Some(index) = enter_submenu {
+        choose(state, ui, ring, Some(index));
     }
     while let Ok(reply) = state.audio.replies.try_recv() {
         if let Some(s) = state.session.as_ref()
@@ -885,7 +957,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
         };
         ui.global::<Ink>().set_light(light);
         preview_background(ui, ring);
-        let accent = color(&state.config.settings.accent);
+        let accent = color(&ui.get_accent_hex());
         ui.global::<Ink>().set_accent(accent);
         let _ = i_slint_backend_selector::with_global_context(|ctx| ctx.set_accent_color(accent));
         ui.set_diagnostic(format!("Orbit Axion {}\nRAM: {} MB · CPU: {:.2}% · Abertura: {:.2} ms\nConfiguração: {}\nCaptura: {} · Sessão: {} s\nSem telemetria e sem histórico de ações.",env!("CARGO_PKG_VERSION"),services::memory_mb(),cpu,state.latency_ms,state.store.directory.display(),if state.paused||state.safe{"pausada"}else{"ativa"},state.opened.elapsed().as_secs()).into());
@@ -1002,8 +1074,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.settings.startup = true;
         config.settings.background_color = "#464545".into();
         config.settings.opacity = 0.37;
+        config.settings.liquid_glass = true;
         config.settings.menu_style = Some(MenuStyle {
             background: "#5c2040".into(),
+            liquid_glass: true,
+            glass_strength: 0.65,
             opacity: 0.8,
             ..MenuStyle::default()
         });
@@ -1166,6 +1241,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         ui.global::<MenuInk>().get_background(),
                         menu_color("#5c2040")
                     );
+                    color_picker::set(&ui, 201, "#00884480".into());
+                    ui.invoke_color_opacity(201, 50.0);
+                    assert_eq!(ui.get_button_background(), "#00884480");
+                    color_picker::set(&ui, 202, "#FFAA00AA".into());
+                    color_picker::set(&ui, 200, "#DFDEDCFF".into());
+                    ui.invoke_choose_icon("bi:alarm".into());
+                    assert_eq!(ui.get_icon_name(), "bi:alarm");
+                    ui.invoke_save_slot();
+                    #[cfg(debug_assertions)]
+                    {
+                        let s = test_state.borrow();
+                        assert_eq!(
+                            s.config.menus[0].slots[0]
+                                .as_ref()
+                                .unwrap()
+                                .background_color
+                                .as_deref(),
+                            Some("#00884480")
+                        );
+                        assert_eq!(
+                            s.config.menus[0].slots[0].as_ref().unwrap().icon,
+                            "bi:alarm"
+                        );
+                    }
+                    ui.set_icon_query("home".into());
+                    ui.set_icon_library(2);
+                    icon_catalog::refresh(&ui);
+                    assert!(ui.get_icon_count() > 0);
+                    ui.set_page(2);
                     println!("UI TEST OK: hidden-page settings preserve their loaded values");
                     #[cfg(debug_assertions)]
                     if let Some(ring) = test_ring.upgrade() {

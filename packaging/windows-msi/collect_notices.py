@@ -17,5 +17,7 @@ for package in sorted(packages, key=lambda p: (p["name"], p["version"])):
         if path.is_file():
             section.extend([path.name, path.read_text(encoding="utf-8", errors="replace")])
     sections.append("\n".join(section))
+for notice in sorted((root / "assets" / "icons").glob("*-LICENSE.txt")):
+    sections.append(notice.name + "\n" + notice.read_text(encoding="utf-8"))
 output.write_text("\n\n".join(sections), encoding="utf-8")
 print(output)

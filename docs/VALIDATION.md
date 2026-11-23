@@ -1,3 +1,16 @@
+# Verificações locais — 0.2.5 — 2026-11-22
+
+- 24 testes unitários: catálogo de ambas as bibliotecas, cores individuais, geometria central, compatibilidade JSON e verificações anteriores.
+- Regressão de submenu em janela real: estado de botão mantido após transição e menu fechado na soltura sobre centro, vazio e alvo de submenu; modo clique preservado.
+- UI test aplica cores de botão/ícone, seleciona ícone Bootstrap e salva o resultado, sem executar a ação.
+- Capturas do renderizador inspecionadas para Bootstrap e Material, seletor visual, círculo central e efeito de vidro; testes com backend padrão e software.
+- Teste de alpha do fundo detecta clamp incorreto de opacidade; cantos continuam transparentes e fundo nativo desativado.
+- Fontes incorporadas verificadas no código gerado pelo Slint (registro por memória).
+
+O seletor nativo ChooseColorW foi aberto em diagnóstico isolado, mostrou a paleta visual e aceitou RGB (255,172,172); a confirmação retornou #FFACAC, validando o fluxo real e a conversão de canais. Nenhuma configuração do usuário foi alterada por esse diagnóstico. O efeito Liquid Glass é visual, sem APIs Apple de refração. Instalação/upgrade/rollback do MSI em VM e testes prolongados em outros dispositivos continuam pendentes.
+
+---
+
 # Verificações locais — 0.2.4 — 2026-11-22
 
 - 22 testes unitários: migração de cores, independência após reinício, validação RGB/RGBA e verificações anteriores.

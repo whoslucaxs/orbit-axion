@@ -1,7 +1,10 @@
+import "../assets/icons/bootstrap-icons.ttf";
+import "../assets/icons/material-icons.ttf";
 export { Palette } from "std-widgets.slint";
 import { Palette, VerticalBox, HorizontalBox, Button, ComboBox, CheckBox, LineEdit, TextEdit, SpinBox, Slider, ScrollView } from "std-widgets.slint";
 export global Ink {
     in-out property <bool> light: false;
+    in-out property<bool> liquid-glass: false;
     changed light => { Palette.color-scheme = light ? ColorScheme.light : ColorScheme.dark; }
     out property <color> text: light ? #151515 : #DFDEDC;
     out property <color> muted: light ? #646560 : #A6A7A2;
@@ -26,6 +29,12 @@ export global MenuInk {
     in-out property <color> selection-border: #00ACAC;
     in-out property <color> shadow: #00000030;
     in-out property<float> opacity: 0.92;
+    in-out property<color> center-background: #111212C0;
+    in-out property<color> center-border: #DFDEDC28;
+    in-out property<float> center-radius: 64;
+    in-out property<bool> liquid-glass: false;
+    in-out property<float> glass-strength: 0.5;
+    in-out property<color> glass-highlight: #FFFFFF;
 }
 component Pill inherits Rectangle {
     in property <string> text;
@@ -34,15 +43,39 @@ component Pill inherits Rectangle {
     min-height: 36px; min-width: label.preferred-width + 28px;
     border-radius: 10px; border-width: 1px;
     border-color: accent ? Ink.accent.with-alpha(0.5) : Ink.edge;
-    background: touch.pressed ? Ink.accent.with-alpha(0.33) : touch.has-hover ? Ink.accent.with-alpha(0.14) : accent ? Ink.accent.with-alpha(0.19) : Ink.surface;
+    background: touch.pressed ? Ink.accent.with-alpha(0.33) : touch.has-hover ? Ink.accent.with-alpha(0.14) : accent ? Ink.accent.with-alpha(0.19) : Ink.liquid-glass ? @linear-gradient(130deg, Ink.surface.brighter(18%).with-alpha(0.8), Ink.surface.with-alpha(0.35)) : Ink.surface;
     animate background { duration: 110ms; }
     label := Text { text: root.text; color: root.accent ? Ink.accent : Ink.text; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
     touch := TouchArea { clicked => { root.clicked(); } }
     accessible-role: button; accessible-label: root.text; accessible-action-default => { root.clicked(); }
 }
+component ColorControl inherits Rectangle {
+    in property<color> value;
+    in property<bool> allow-alpha: true;
+    in property<bool> en: false;
+    callback pick;
+    callback alpha-changed(float);
+    callback reset;
+    background: transparent;
+    VerticalBox { padding: 0px; spacing: 4px;
+        HorizontalBox { padding: 0px; spacing: 8px;
+            Rectangle { width: 34px; height: 30px; border-radius: 8px; border-width: 1px; border-color: Ink.edge; background: @linear-gradient(45deg, #777777, #bbbbbb);
+                Rectangle { border-radius: 8px; background: root.value; }
+                TouchArea { clicked => { root.pick(); } }
+            }
+            Pill { text: root.en ? "Choose color…" : "Escolher cor…"; clicked => { root.pick(); } }
+            Pill { text: root.en ? "Default" : "Padrão"; clicked => { root.reset(); } }
+        }
+        if root.allow-alpha: HorizontalBox { padding: 0px; spacing: 6px;
+            Text { text: round(root.value.alpha * 100 / 255.0) + "%"; color: Ink.muted; font-size: 10px; width: 33px; vertical-alignment: center; }
+            Slider { value: root.value.alpha * 100 / 255.0; minimum: 0; maximum: 100; changed(v) => { root.alpha-changed(v); } }
+        }
+    }
+}
 component Caption inherits Text { color: Ink.muted; font-size: 11px; }
 component Heading inherits Text { color: Ink.text; font-size: 21px; font-weight: 600; }
-export struct RingItem { x: float, y: float, glyph: string, label: string, image: image, filled: bool, tint: color }
+export struct RingItem { x: float, y: float, glyph: string, family: string, label: string, image: image, filled: bool, tint: color, custom-icon: bool, custom-background: bool, custom-border: bool, background-color: color, border-color: color }
+export struct IconChoice { id: string, label: string, glyph: string, family: string }
 component Face inherits Rectangle {
     in property<float> zoom: 1;
     in property <[RingItem]> items;
@@ -56,26 +89,37 @@ component Face inherits Rectangle {
     background: transparent;
     Rectangle { x: parent.width / 2 - 152px * root.zoom; y: parent.height / 2 - 152px * root.zoom; width: 304px * root.zoom; height: 304px * root.zoom;
         border-radius: 152px * root.zoom; border-width: 1px; border-color: MenuInk.border;
-        background: @linear-gradient(115deg, MenuInk.background.brighter(8%).with-alpha(MenuInk.background.alpha * root.glass-opacity), MenuInk.background.with-alpha(MenuInk.background.alpha * root.glass-opacity));
+        background: @linear-gradient(115deg, MenuInk.background.brighter(8%).with-alpha(MenuInk.background.alpha / 255.0 * root.glass-opacity), MenuInk.background.with-alpha(MenuInk.background.alpha / 255.0 * root.glass-opacity));
         drop-shadow-blur: 22px; drop-shadow-offset-y: 8px; drop-shadow-color: MenuInk.shadow;
+    }
+    if MenuInk.liquid-glass: Rectangle {
+        x: parent.width / 2 - 152px * root.zoom; y: parent.height / 2 - 152px * root.zoom; width: 304px * root.zoom; height: 304px * root.zoom;
+        border-radius: 152px * root.zoom; border-width: 1px; border-color: MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.4);
+        background: @linear-gradient(135deg, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.18), transparent, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.035));
     }
     for item[i] in root.items: Rectangle {
         x: parent.width / 2 + item.x * 1px * root.zoom - 29px * root.zoom; y: parent.height / 2 + item.y * 1px * root.zoom - 29px * root.zoom;
         width: 58px * root.zoom; height: 58px * root.zoom; border-radius: 29px * root.zoom; border-width: 1px;
-        border-color: root.selected == i ? MenuInk.selection-border : MenuInk.border;
-        background: root.selected == i ? MenuInk.selection-background : @linear-gradient(120deg, MenuInk.surface.brighter(12%), MenuInk.surface);
+        border-color: root.selected == i && !root.interactive ? MenuInk.selection-border : item.custom-border ? item.border-color : MenuInk.border;
+        background: root.selected == i && !root.interactive ? MenuInk.selection-background : item.custom-background ? item.background-color : @linear-gradient(120deg, MenuInk.surface.brighter(12%), MenuInk.surface);
         animate background { duration: 100ms; }
-        Text { visible: item.image.width == 0; text: item.glyph; color: root.selected == i ? MenuInk.selection-icon : item.filled ? (item.tint.alpha > 0 ? item.tint : MenuInk.icons) : MenuInk.muted.with-alpha(0.5); font-family: "Segoe Fluent Icons"; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
-        Image { visible: item.image.width > 0; source: item.image; x: 16px * root.zoom; y: 16px * root.zoom; width: 26px * root.zoom; height: 26px * root.zoom; image-fit: contain; }
+        if MenuInk.liquid-glass: Rectangle {
+            border-radius: 29px * root.zoom; border-width: 1px; border-color: MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.4);
+            background: @linear-gradient(130deg, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.24), transparent, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.04));
+        }
+        Text { visible: item.image.width == 0; text: item.glyph; color: root.selected == i && !root.interactive ? MenuInk.selection-icon : item.filled ? (item.custom-icon ? item.tint : MenuInk.icons) : MenuInk.muted.with-alpha(MenuInk.muted.alpha / 255.0 * 0.5); font-family: item.family; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
+        Image { visible: item.image.width > 0; source: item.image; x: 16px * root.zoom; y: 16px * root.zoom; width: 26px * root.zoom; height: 26px * root.zoom; image-fit: contain; colorize: item.custom-icon ? item.tint : transparent; opacity: item.custom-icon && item.tint.alpha == 0 ? 0 : 1; }
+        if root.interactive && root.selected == i: Rectangle { x: -3px; y: -3px; width: parent.width + 6px; height: parent.height + 6px; border-radius: 32px * root.zoom; border-width: 1px; border-color: MenuInk.selection-border; background: transparent; }
         area := TouchArea { enabled: root.interactive;
             clicked => { root.pick(i); }
             pointer-event(e) => { if e.kind == PointerEventKind.up { root.reorder(i, self.mouse-x / 1px + item.x - 29, self.mouse-y / 1px + item.y - 29); } }
         }
     }
-    Rectangle { x: parent.width / 2 - 70px * root.zoom; y: parent.height / 2 - 48px * root.zoom; width: 140px * root.zoom; height: 96px * root.zoom; background: transparent;
+    Rectangle { x: parent.width / 2 - MenuInk.center-radius * 1px * root.zoom; y: parent.height / 2 - MenuInk.center-radius * 1px * root.zoom; width: MenuInk.center-radius * 2px * root.zoom; height: MenuInk.center-radius * 2px * root.zoom;
+        border-radius: MenuInk.center-radius * 1px * root.zoom; background: MenuInk.center-background; border-width: 1px; border-color: MenuInk.center-border;
         VerticalLayout { padding: 3px; spacing: 5px;
             Text { text: root.center-title; color: MenuInk.title; font-size: 10px * root.zoom; font-weight: 600; horizontal-alignment: center; }
-            Text { text: root.center-text; color: MenuInk.text; font-size: 14px * root.zoom; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: root.center-text; color: MenuInk.text; font-size: min(14px, MenuInk.center-radius / 4 * 1px) * root.zoom; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; }
             Text { text: "ORBIT / 08"; color: MenuInk.muted; font-size: 9px * root.zoom; horizontal-alignment: center; }
         }
     }
@@ -148,11 +192,44 @@ export component Editor inherits Window {
     in-out property <string> icon-name;
     in-out property<string> icon-color;
     in-out property<string> accent-hex: "#00ACAC";
+    changed accent-hex => { root.preview-background(); }
     in-out property<string> background-hex;
     changed background-hex => { root.preview-background(); }
     changed glass-strength => { root.preview-background(); }
     callback preview-background;
     callback save-menu-style;
+    callback pick-color(int);
+    callback color-opacity(int,float);
+    callback reset-color(int);
+    callback refresh-icons;
+    callback choose-icon(string);
+    in property<[IconChoice]> icon-choices;
+    in property<int> icon-count: 0;
+    in-out property<int> icon-library: 0;
+    in-out property<int> icon-page: 0;
+    in-out property<string> icon-query;
+    changed icon-query => { root.icon-page = 0; root.refresh-icons(); }
+    in-out property<bool> menu-liquid-glass: false;
+    changed menu-liquid-glass => { root.preview-background(); }
+    in-out property<float> menu-glass-strength: 50;
+    changed menu-glass-strength => { root.preview-background(); }
+    in-out property<float> menu-center-radius: 64;
+    changed menu-center-radius => { root.preview-background(); }
+    in-out property<string> button-background;
+    in-out property<string> button-border;
+    in property<color> icon-color-preview;
+    in property<color> button-background-preview;
+    in property<color> button-border-preview;
+    changed button-background => { root.preview-slot(); }
+    changed button-border => { root.preview-slot(); }
+    changed icon-color => { root.preview-slot(); }
+    in-out property<string> menu-center-background-hex: "#111212C0";
+    changed menu-center-background-hex => { root.preview-background(); }
+    in-out property<string> menu-center-border-hex: "#DFDEDC28";
+    changed menu-center-border-hex => { root.preview-background(); }
+    in-out property<string> menu-glass-highlight-hex: "#FFFFFF";
+    changed menu-glass-highlight-hex => { root.preview-background(); }
+
     in-out property<float> menu-opacity: 92;
     changed menu-opacity => { root.preview-background(); }
     in-out property<string> menu-background-hex: "#111212";
@@ -196,6 +273,8 @@ export component Editor inherits Window {
     in-out property <float> distance: 48;
     in-out property <float> glass-strength: 92;
     in-out property <int> theme: 0;
+    in-out property<bool> app-liquid-glass: false;
+    changed app-liquid-glass => { root.preview-background(); }
     in-out property <bool> startup: false;
     in-out property <bool> sounds: false;
     in-out property<float> sound-volume: 30;
@@ -245,7 +324,7 @@ export component Editor inherits Window {
     callback macro-up;
     callback pump;
     HorizontalLayout {
-        Rectangle { width: 204px; background: Ink.surface.with-alpha(0.55);
+        Rectangle { width: 204px; background: Ink.surface.with-alpha(Ink.liquid-glass ? 0.3 : 0.55);
             Rectangle { x: parent.width - 1px; width: 1px; background: Ink.edge; }
             VerticalLayout { padding: 22px; spacing: 10px;
                 Text { text: "◎"; color: Ink.accent; font-size: 40px; height: 58px; }
@@ -264,7 +343,7 @@ export component Editor inherits Window {
             HorizontalLayout {
                 VerticalLayout { spacing: 5px;
                     Caption { text: root.en ? "WORKSPACE / PERSONAL" : "ESPAÇO / PESSOAL"; color: Ink.accent; }
-                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : root.page == 4 ? (root.en ? "Your menu. Your palette." : "Seu menu. Sua paleta.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
+                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : root.page == 5 ? (root.en ? "An icon for every action." : "Um ícone para cada ação.") : root.page == 4 ? (root.en ? "Your menu. Your palette." : "Seu menu. Sua paleta.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
                 }
                 Pill { text: root.en ? "Export" : "Exportar"; clicked => { root.export-config(); } }
                 Pill { text: root.en ? "Import" : "Importar"; clicked => { root.import-config(); } }
@@ -322,8 +401,14 @@ export component Editor inherits Window {
                         if root.action-type == 10: Pill { text: root.en ? "Update selected step" : "Atualizar etapa selecionada"; clicked=>{root.macro-update();} }
                         Caption { text: root.en ? "Icon (library name or imported file)" : "Ícone (nome da biblioteca ou arquivo)"; wrap: word-wrap; }
                         LineEdit { text <=> root.icon-name; placeholder-text: "volume · mic · play · folder · copy · settings"; }
+                        Pill { text: root.en ? "Browse 4,312 icons…" : "Escolher entre 4.312 ícones…"; clicked => { root.page = 5; root.refresh-icons(); } }
                         Pill { text: root.en ? "Import icon…" : "Importar ícone…"; clicked => { root.import-icon(); } }
-                        LineEdit { text <=> root.icon-color; placeholder-text: root.en ? "Icon color #RRGGBB (blank = automatic)" : "Cor do ícone #RRGGBB (vazio = automático)"; }
+                        Caption { text: root.en ? "Icon color" : "Cor do ícone"; }
+                        ColorControl { en: root.en; value: root.icon-color-preview; pick => { root.pick-color(200); } alpha-changed(v) => { root.color-opacity(200,v); } reset => { root.reset-color(200); } }
+                        Caption { text: root.en ? "This button background" : "Fundo deste botão"; }
+                        ColorControl { en: root.en; value: root.button-background-preview; pick => { root.pick-color(201); } alpha-changed(v) => { root.color-opacity(201,v); } reset => { root.reset-color(201); } }
+                        Caption { text: root.en ? "This button border" : "Borda deste botão"; }
+                        ColorControl { en: root.en; value: root.button-border-preview; pick => { root.pick-color(202); } alpha-changed(v) => { root.color-opacity(202,v); } reset => { root.reset-color(202); } }
                         CheckBox { text: root.en ? "Confirm before executing" : "Confirmar antes de executar"; checked <=> root.confirm; }
                         Pill { text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
                         if root.action-type == 1: Caption { text: root.en ? "Commands and scripts can modify your files and system. Review the target and arguments." : "Comandos e scripts podem alterar arquivos e o sistema. Revise o destino e os argumentos."; wrap: word-wrap; }
@@ -355,13 +440,15 @@ export component Editor inherits Window {
             if root.page == 2: Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);
                 ScrollView { VerticalBox { padding: 24px; spacing: 13px;
                     Heading { text: root.en ? "Inked / subtle glass" : "Inked / vidro sutil"; }
+                    CheckBox { text: "Liquid Glass"; checked <=> root.app-liquid-glass; }
                     HorizontalBox { padding: 0px; for tint in [#000000,#DFDEDC,#A6A7A2,#464545,#00ACAC]: Rectangle { height: 34px; border-radius: 8px; background: tint; border-width: 1px; border-color: Ink.edge; } }
-                    LineEdit { text <=> root.accent-hex; placeholder-text: "#00ACAC"; }
+                    Caption { text: root.en ? "App accent" : "Destaque do aplicativo"; }
+                    ColorControl { en: root.en; value: Ink.accent; allow-alpha: false; pick => { root.pick-color(101); } reset => { root.reset-color(101); } }
                     ComboBox { model: root.en ? ["Follow Windows", "Dark", "Light"] : ["Seguir Windows", "Escuro", "Claro"]; current-index: root.theme; selected(value) => { root.theme = self.current-index; } }
                     Caption { text: root.en ? "Menu diameter (logical pixels)" : "Diâmetro do menu (pixels lógicos)"; }
                     SpinBox { value <=> root.menu-size; minimum: 280; maximum: 640; }
-                    Caption { text: root.en ? "Panel background color (#RRGGBB; blank follows theme)" : "Cor de fundo do painel (#RRGGBB; vazio segue o tema)"; }
-                    LineEdit { text <=> root.background-hex; placeholder-text: "#464545"; }
+                    Caption { text: root.en ? "App background color" : "Cor de fundo do aplicativo"; }
+                    ColorControl { en: root.en; value: Ink.panel-background; allow-alpha: false; pick => { root.pick-color(100); } reset => { root.reset-color(100); } }
                     Pill { text: root.en ? "Use theme background" : "Usar fundo do tema"; clicked => { root.background-hex = ""; } }
                     Caption { text: (root.en ? "Background opacity: " : "Opacidade do fundo: ") + round(root.glass-strength) + "%"; }
                     Caption { text: root.en ? "0% transparent · 100% solid. Applies to the app only." : "0% transparente · 100% sólido. Aplica-se apenas ao app."; wrap: word-wrap; }
@@ -375,7 +462,7 @@ export component Editor inherits Window {
                     if root.trigger-source == 1: Caption { text: root.en ? "Choose a key from the list or capture it below, then Apply preferences. Test activation in another app; typing stays free in this editor." : "Escolha a tecla na lista ou capture abaixo e aplique as preferências. Teste a abertura em outro app; neste editor a digitação fica livre."; wrap: word-wrap; }
                     Pill { text: root.en ? "Capture mouse button or keyboard key (10 s)" : "Capturar botão do mouse ou tecla (10 s)"; clicked=>{root.learn-button();} }
                     CheckBox { text: root.en ? "Hold, move and release (off = click mode)" : "Segurar, mover e soltar (desmarcado = modo clique)"; checked <=> root.hold; }
-                    Caption { text: root.en ? "A short tap keeps the menu open. In hold mode, releasing at the center cancels." : "Clique curto mantém o menu aberto. No modo segurar, soltar no centro cancela."; wrap: word-wrap; }
+                    Caption { text: root.en ? "A short tap keeps the menu open. Hold over a submenu to enter; release finishes the gesture." : "Clique curto mantém o menu aberto. Segure sobre um submenu para entrar; soltar finaliza o gesto."; wrap: word-wrap; }
                     SpinBox { value <=> root.hold-ms; minimum: 50; maximum: 2000; }
                     Caption { text: root.en ? "Minimum gesture distance" : "Distância mínima do gesto"; }
                     Slider { value <=> root.distance; minimum: 10; maximum: 180; }
@@ -402,30 +489,65 @@ export component Editor inherits Window {
                 }
                 Rectangle { width: 342px; border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface;
                     ScrollView { VerticalBox { padding: 20px; spacing: 10px;
-                        Caption { text: root.en ? "HEX #RRGGBB or #RRGGBBAA (with transparency)" : "HEX #RRGGBB ou #RRGGBBAA (com transparência)"; wrap: word-wrap; }
+                        CheckBox { text: "Liquid Glass"; checked <=> root.menu-liquid-glass; }
+                        if root.menu-liquid-glass: Slider { value <=> root.menu-glass-strength; minimum: 0; maximum: 100; }
+                        Caption { text: root.en ? "Center circle radius" : "Raio do círculo central"; }
+                        Slider { value <=> root.menu-center-radius; minimum: 24; maximum: 76; }
+                        Caption { text: round(root.menu-center-radius) + " px"; }
+                        Caption { text: root.en ? "Choose colors visually; the slider controls opacity." : "Escolha as cores visualmente; o controle abaixo ajusta a opacidade."; wrap: word-wrap; }
+                        Caption { text: root.en ? "Center circle" : "Círculo central"; }
+                        ColorControl { en: root.en; value: MenuInk.center-background; pick => { root.pick-color(11); } alpha-changed(v) => { root.color-opacity(11,v); } reset => { root.reset-color(11); } }
+                        Caption { text: root.en ? "Center circle border" : "Borda do círculo central"; }
+                        ColorControl { en: root.en; value: MenuInk.center-border; pick => { root.pick-color(12); } alpha-changed(v) => { root.color-opacity(12,v); } reset => { root.reset-color(12); } }
+                        Caption { text: root.en ? "Glass highlights" : "Reflexos do vidro"; }
+                        ColorControl { en: root.en; value: MenuInk.glass-highlight; pick => { root.pick-color(13); } alpha-changed(v) => { root.color-opacity(13,v); } reset => { root.reset-color(13); } }
                         Caption { text: root.en ? "Background" : "Fundo circular"; }
-                        LineEdit { text <=> root.menu-background-hex; }
+                        ColorControl { en: root.en; value: MenuInk.background; pick => { root.pick-color(0); } alpha-changed(v) => { root.color-opacity(0,v); } reset => { root.reset-color(0); } }
                         Caption { text: root.en ? "Button background" : "Fundo dos botões"; }
-                        LineEdit { text <=> root.menu-surface-hex; }
+                        ColorControl { en: root.en; value: MenuInk.surface; pick => { root.pick-color(1); } alpha-changed(v) => { root.color-opacity(1,v); } reset => { root.reset-color(1); } }
                         Caption { text: root.en ? "Icons" : "Ícones"; }
-                        LineEdit { text <=> root.menu-icons-hex; }
+                        ColorControl { en: root.en; value: MenuInk.icons; pick => { root.pick-color(2); } alpha-changed(v) => { root.color-opacity(2,v); } reset => { root.reset-color(2); } }
                         Caption { text: root.en ? "Text" : "Texto central"; }
-                        LineEdit { text <=> root.menu-text-hex; }
+                        ColorControl { en: root.en; value: MenuInk.text; pick => { root.pick-color(3); } alpha-changed(v) => { root.color-opacity(3,v); } reset => { root.reset-color(3); } }
                         Caption { text: root.en ? "Secondary text / empty slots" : "Texto secundário / posições vazias"; }
-                        LineEdit { text <=> root.menu-muted-hex; }
+                        ColorControl { en: root.en; value: MenuInk.muted; pick => { root.pick-color(4); } alpha-changed(v) => { root.color-opacity(4,v); } reset => { root.reset-color(4); } }
                         Caption { text: root.en ? "Borders" : "Bordas"; }
-                        LineEdit { text <=> root.menu-border-hex; }
+                        ColorControl { en: root.en; value: MenuInk.border; pick => { root.pick-color(5); } alpha-changed(v) => { root.color-opacity(5,v); } reset => { root.reset-color(5); } }
                         Caption { text: root.en ? "Profile / search title" : "Título do perfil / busca"; }
-                        LineEdit { text <=> root.menu-title-hex; }
+                        ColorControl { en: root.en; value: MenuInk.title; pick => { root.pick-color(6); } alpha-changed(v) => { root.color-opacity(6,v); } reset => { root.reset-color(6); } }
                         Caption { text: root.en ? "Selected background" : "Fundo da seleção"; }
-                        LineEdit { text <=> root.menu-selection-background-hex; }
+                        ColorControl { en: root.en; value: MenuInk.selection-background; pick => { root.pick-color(7); } alpha-changed(v) => { root.color-opacity(7,v); } reset => { root.reset-color(7); } }
                         Caption { text: root.en ? "Selected icon" : "Ícone selecionado"; }
-                        LineEdit { text <=> root.menu-selection-icon-hex; }
+                        ColorControl { en: root.en; value: MenuInk.selection-icon; pick => { root.pick-color(8); } alpha-changed(v) => { root.color-opacity(8,v); } reset => { root.reset-color(8); } }
                         Caption { text: root.en ? "Selected border" : "Borda da seleção"; }
-                        LineEdit { text <=> root.menu-selection-border-hex; }
+                        ColorControl { en: root.en; value: MenuInk.selection-border; pick => { root.pick-color(9); } alpha-changed(v) => { root.color-opacity(9,v); } reset => { root.reset-color(9); } }
                         Caption { text: root.en ? "Shadow" : "Sombra"; }
-                        LineEdit { text <=> root.menu-shadow-hex; }
+                        ColorControl { en: root.en; value: MenuInk.shadow; pick => { root.pick-color(10); } alpha-changed(v) => { root.color-opacity(10,v); } reset => { root.reset-color(10); } }
                     } }
+                }
+            }
+            if root.page == 5: Rectangle { border-radius: 18px; background: Ink.surface;
+                VerticalBox { padding: 20px; spacing: 10px;
+                    Heading { text: root.en ? "Icon library" : "Biblioteca de ícones"; }
+                    HorizontalBox { padding: 0px;
+                        LineEdit { text <=> root.icon-query; placeholder-text: root.en ? "Search icons…" : "Buscar ícones…"; }
+                        ComboBox { model: ["Bootstrap + Material", "Bootstrap Icons", "Material Icons"]; current-index: root.icon-library; selected(v) => { root.icon-library = self.current-index; root.icon-page = 0; root.refresh-icons(); } }
+                    }
+                    Caption { text: root.icon-count + (root.en ? " icons · page " : " ícones · página ") + (root.icon-page + 1); }
+                    ScrollView { VerticalBox { padding: 0px; spacing: 5px;
+                        for entry in root.icon-choices: Rectangle { height: 52px; border-radius: 8px; background: Ink.canvas;
+                            HorizontalBox { padding: 8px;
+                                Text { text: entry.glyph; font-family: entry.family; font-size: 26px; color: Ink.text; width: 40px; vertical-alignment: center; }
+                                Text { text: entry.label; color: Ink.text; vertical-alignment: center; }
+                                Pill { width: 130px; text: root.en ? "Use icon" : "Usar ícone"; clicked => { root.choose-icon(entry.id); } }
+                            }
+                        }
+                    } }
+                    HorizontalBox { padding: 0px;
+                        Pill { text: root.en ? "Previous" : "Anterior"; clicked => { root.icon-page = max(0,root.icon-page - 1); root.refresh-icons(); } }
+                        Pill { text: root.en ? "Next" : "Próxima"; clicked => { root.icon-page += 1; root.refresh-icons(); } }
+                        Pill { text: root.en ? "Back to action" : "Voltar à ação"; clicked => { root.page = 0; } }
+                    }
                 }
             }
             if root.page == 3: Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);

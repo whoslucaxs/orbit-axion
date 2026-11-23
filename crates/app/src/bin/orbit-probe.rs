@@ -6,6 +6,19 @@ use orbit_audio::{
 };
 use orbit_windows::{Hooks, cursor, foreground, scale_at};
 fn main() {
+    #[cfg(debug_assertions)]
+    if std::env::args().any(|arg| arg == "--color-picker-test") {
+        match orbit_windows::services::choose_color(None, 0x00ACAC) {
+            Ok(Some(color)) => println!("COLOR PICKER OK: #{color:06X}"),
+            Ok(None) => println!("COLOR PICKER: cancelled"),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     println!("Orbit Axion · diagnóstico de viabilidade (sem alterar áudio)");
     println!("foreground: 0x{:x}", foreground());
     match cursor() {

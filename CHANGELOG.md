@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5 — submenus e personalização visual — 2026-11-22
+
+- Submenus por permanência em modo segurar; soltura fecha a navegação, inclusive sobre centro, vazio e outro submenu.
+- Seletor nativo de cores com controles de opacidade; campos HEX manuais substituídos na interface.
+- Fundo, borda e ícone configuráveis individualmente por botão.
+- Círculo central com cor, borda e raio; zona central considera o raio configurado.
+- Opções independentes de Liquid Glass visual para app e menu, com intensidade/reflexos no menu.
+- Biblioteca offline de 4.312 ícones Bootstrap/Material, fontes incorporadas, busca e paginação.
+- Correção da normalização da transparência dos canais de cor no Slint.
+
 ## 0.2.4 — paleta independente e seleção de teclas — 2026-11-22
 
 - Paleta própria do menu para fundo, botões, ícones, textos, bordas, seleção e sombra; opacidade independente.

@@ -7,3 +7,9 @@ O projeto usa a opção GPL-3.0-only do Slint 1.19.0 e publica seu código sob G
 A DLL Voicemeeter Remote API é carregada exclusivamente da instalação local registrada e não é incluída no código, MSI ou repositório. Revise os termos VB-Audio para qualquer distribuição do SDK. Nenhum recurso da Logitech ou fonte proprietária é copiado. Ícones importados pelo usuário continuam sob responsabilidade de seu titular.
 
 O repositório fornece Cargo.lock e fontes correspondentes. Ao redistribuir binários, forneça também o código correspondente e os avisos exigidos pelas licenças aplicáveis.
+
+## Bibliotecas de ícones incorporadas
+
+Bootstrap Icons (MIT) e Material Icons (Apache-2.0) são distribuídos como fontes e catálogo em assets/icons. As revisões exatas, contagens e conversão WOFF2→TTF estão em assets/icons/SOURCES.json. As licenças completas acompanham os arquivos e são agregadas ao NOTICES.txt do MSI. As fontes são incorporadas ao executável pelo compilador Slint, sem instalação de fontes no Windows.
+
+A referência liquid-glass-skill é voltada a SwiftUI/Apple. O tema deste projeto é uma adaptação visual independente em Slint, sem código SwiftUI nem refração nativa Apple.

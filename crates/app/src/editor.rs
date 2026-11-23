@@ -52,6 +52,7 @@ pub fn refresh(ui: &Editor, s: &mut State) {
     ui.set_distance(settings.distance as f32);
     ui.set_glass_strength(settings.opacity * 100.0);
     ui.set_background_hex(settings.background_color.clone().into());
+    ui.set_app_liquid_glass(settings.liquid_glass);
     let light = match settings.theme.as_str() {
         "light" => true,
         "dark" => false,
@@ -70,6 +71,12 @@ pub fn refresh(ui: &Editor, s: &mut State) {
     ui.set_menu_selection_border_hex(menu_style.selection_border.into());
     ui.set_menu_shadow_hex(menu_style.shadow.into());
     ui.set_menu_opacity(menu_style.opacity * 100.0);
+    ui.set_menu_center_background_hex(menu_style.center_background.into());
+    ui.set_menu_center_border_hex(menu_style.center_border.into());
+    ui.set_menu_glass_highlight_hex(menu_style.glass_highlight.into());
+    ui.set_menu_center_radius(menu_style.center_radius);
+    ui.set_menu_liquid_glass(menu_style.liquid_glass);
+    ui.set_menu_glass_strength(menu_style.glass_strength * 100.0);
     ui.set_theme(match settings.theme.as_str() {
         "dark" => 1,
         "light" => 2,
@@ -114,11 +121,15 @@ fn load_slot(ui: &Editor, s: &mut State) {
     ui.set_elevated(false);
     ui.set_confirm(false);
     ui.set_icon_color("".into());
+    ui.set_button_background("".into());
+    ui.set_button_border("".into());
     if let Some(slot) = &slots[s.slot] {
         ui.set_slot_name(slot.name.clone().into());
         ui.set_icon_name(slot.icon.clone().into());
         ui.set_confirm(slot.confirm);
         ui.set_icon_color(slot.color.clone().unwrap_or_default().into());
+        ui.set_button_background(slot.background_color.clone().unwrap_or_default().into());
+        ui.set_button_border(slot.border_color.clone().unwrap_or_default().into());
         match &slot.action {
             Action::Open { target } => {
                 ui.set_action_type(2);
@@ -223,6 +234,7 @@ fn load_slot(ui: &Editor, s: &mut State) {
         ui.set_icon_name("menu".into());
         ui.set_action_type(0);
     }
+    color_picker::update_swatches(ui);
     macro_list(ui, s);
 }
 fn macro_list(ui: &Editor, s: &State) {
@@ -369,6 +381,10 @@ fn save_slot(ui: &Editor, s: &mut State) -> Result<(), String> {
         name: ui.get_slot_name().to_string(),
         icon: ui.get_icon_name().to_string(),
         confirm: ui.get_confirm(),
+        background_color: (!ui.get_button_background().is_empty())
+            .then(|| ui.get_button_background().to_string()),
+        border_color: (!ui.get_button_border().is_empty())
+            .then(|| ui.get_button_border().to_string()),
         color: if ui.get_icon_color().is_empty() {
             None
         } else {
@@ -462,6 +478,26 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             slot.name = u.get_slot_name().to_string();
             slot.icon = u.get_icon_name().to_string();
         }
+        if slots[s.slot].is_none() {
+            slots[s.slot] = Some(Slot {
+                name: u.get_slot_name().to_string(),
+                icon: u.get_icon_name().to_string(),
+                confirm: false,
+                color: None,
+                background_color: None,
+                border_color: None,
+                action: Action::Settings,
+            });
+        }
+        if let Some(slot) = slots[s.slot].as_mut() {
+            slot.icon = u.get_icon_name().to_string();
+            slot.color = (!u.get_icon_color().is_empty()).then(|| u.get_icon_color().to_string());
+            slot.background_color = (!u.get_button_background().is_empty())
+                .then(|| u.get_button_background().to_string());
+            slot.border_color =
+                (!u.get_button_border().is_empty()).then(|| u.get_button_border().to_string());
+        }
+        color_picker::update_swatches(&u);
         u.set_items(items(&slots, &mut s.icons));
     });
     bind!(on_rename_menu, |u, s, _r| {
@@ -674,6 +710,40 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             close(s, &r);
         }
     });
+    {
+        let weak = ui.as_weak();
+        ui.on_pick_color(move |target| {
+            if let Some(ui) = weak.upgrade() {
+                color_picker::choose(&ui, target);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_color_opacity(move |target, value| {
+            if let Some(ui) = weak.upgrade() {
+                color_picker::alpha(&ui, target, value);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_reset_color(move |target| {
+            if let Some(ui) = weak.upgrade() {
+                color_picker::reset(&ui, target);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_refresh_icons(move || {
+            if let Some(ui) = weak.upgrade() {
+                icon_catalog::refresh(&ui);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_choose_icon(move |id| {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_icon_name(id);
+                ui.set_page(0);
+                ui.invoke_preview_slot();
+            }
+        });
+    }
     bind!(on_preview_background, |u, _s, r| {
         preview_background(&u, &r);
     });
@@ -701,6 +771,7 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             settings.distance = u.get_distance() as f64;
             settings.opacity = u.get_glass_strength() / 100.0;
             settings.background_color = u.get_background_hex().trim().to_string();
+            settings.liquid_glass = u.get_app_liquid_glass();
             settings.theme = match u.get_theme() {
                 1 => "dark",
                 2 => "light",

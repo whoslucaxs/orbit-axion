@@ -260,3 +260,31 @@ pub fn keyboard_choices() -> Vec<u32> {
         })
         .collect()
 }
+
+pub fn choose_color(owner: Option<HWND>, rgb: u32) -> std::result::Result<Option<u32>, String> {
+    use windows::Win32::UI::Controls::Dialogs::*;
+    static CUSTOM: std::sync::Mutex<[COLORREF; 16]> =
+        std::sync::Mutex::new([COLORREF(0x00ffffff); 16]);
+    let mut custom = CUSTOM.lock().map_err(|_| "Paleta indisponível")?;
+    let mut dialog = CHOOSECOLORW {
+        lStructSize: size_of::<CHOOSECOLORW>() as u32,
+        hwndOwner: owner.unwrap_or_default(),
+        rgbResult: COLORREF(((rgb >> 16) & 0xff) | (rgb & 0xff00) | ((rgb & 0xff) << 16)),
+        lpCustColors: custom.as_mut_ptr(),
+        Flags: CC_FULLOPEN | CC_RGBINIT,
+        ..Default::default()
+    };
+    if unsafe { ChooseColorW(&mut dialog) }.as_bool() {
+        let value = dialog.rgbResult.0;
+        Ok(Some(
+            ((value & 0xff) << 16) | (value & 0xff00) | ((value >> 16) & 0xff),
+        ))
+    } else {
+        let error = unsafe { CommDlgExtendedError() };
+        if error.0 == 0 {
+            Ok(None)
+        } else {
+            Err(format!("Seletor de cores: {}", error.0))
+        }
+    }
+}

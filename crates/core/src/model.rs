@@ -16,6 +16,12 @@ pub struct MenuStyle {
     pub selection_border: String,
     pub shadow: String,
     pub opacity: f32,
+    pub center_background: String,
+    pub center_border: String,
+    pub center_radius: f32,
+    pub liquid_glass: bool,
+    pub glass_strength: f32,
+    pub glass_highlight: String,
 }
 impl Default for MenuStyle {
     fn default() -> Self {
@@ -32,6 +38,12 @@ impl Default for MenuStyle {
             selection_border: "#00ACAC".into(),
             shadow: "#00000030".into(),
             opacity: 0.92,
+            center_background: "#111212C0".into(),
+            center_border: "#DFDEDC28".into(),
+            center_radius: 64.0,
+            liquid_glass: false,
+            glass_strength: 0.5,
+            glass_highlight: "#FFFFFF".into(),
         }
     }
 }
@@ -49,9 +61,16 @@ impl MenuStyle {
             &self.selection_icon,
             &self.selection_border,
             &self.shadow,
+            &self.center_background,
+            &self.center_border,
+            &self.glass_highlight,
         ]
         .into_iter()
         .any(|v| !valid_menu_color(v))
+            || !self.center_radius.is_finite()
+            || !(24.0..=76.0).contains(&self.center_radius)
+            || !self.glass_strength.is_finite()
+            || !(0.0..=1.0).contains(&self.glass_strength)
             || !self.opacity.is_finite()
             || !(0.0..=1.0).contains(&self.opacity)
         {
@@ -79,6 +98,7 @@ pub struct Settings {
     pub size: f32,
     pub opacity: f32,
     pub background_color: String,
+    pub liquid_glass: bool,
     pub menu_style: Option<MenuStyle>,
     pub theme: String,
     pub language: String,
@@ -102,6 +122,7 @@ impl Default for Settings {
             size: 360.0,
             opacity: 0.92,
             background_color: String::new(),
+            liquid_glass: false,
             menu_style: None,
             theme: "system".into(),
             language: "pt-BR".into(),
@@ -143,7 +164,15 @@ impl Settings {
             selection_border: self.accent.clone(),
             shadow: "#00000030".into(),
             opacity: self.opacity,
+            ..MenuStyle::default()
         }
+    }
+    pub fn gesture_distance(&self) -> f64 {
+        self.distance.max(
+            self.menu_style
+                .as_ref()
+                .map_or(64.0, |style| style.center_radius as f64),
+        )
     }
     pub fn activation_code(&self) -> u32 {
         self.keyboard_key
@@ -181,6 +210,10 @@ pub struct Slot {
     pub confirm: bool,
     #[serde(default)]
     pub color: Option<String>,
+    #[serde(default)]
+    pub background_color: Option<String>,
+    #[serde(default)]
+    pub border_color: Option<String>,
     pub action: Action,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -316,6 +349,8 @@ impl Default for Config {
                         icon: icon.into(),
                         confirm: false,
                         color: None,
+                        background_color: None,
+                        border_color: None,
                         action,
                     })
                 }),
@@ -457,7 +492,11 @@ impl Config {
                 if slot.name.len() > 200 || slot.icon.contains('\0') {
                     return Err("Nome/ícone inválido".into());
                 }
-                if slot.color.as_ref().is_some_and(|c| !valid_color(c)) {
+                if [&slot.color, &slot.background_color, &slot.border_color]
+                    .into_iter()
+                    .flatten()
+                    .any(|c| !valid_menu_color(c))
+                {
                     return Err("Cor do ícone inválida: use #RRGGBB".into());
                 }
                 action_valid(&slot.action, 0)?;
@@ -579,6 +618,27 @@ pub fn valid_color(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn per_button_colors_and_center_geometry_are_validated_and_legacy_defaults_work() {
+        let mut config = Config::default();
+        let slot = config.menus[0].slots[0].as_mut().unwrap();
+        slot.background_color = Some("#00884480".into());
+        slot.border_color = Some("#FFAA0000".into());
+        slot.color = Some("#FFFFFF80".into());
+        config.settings.menu_style = Some(MenuStyle {
+            center_radius: 76.0,
+            liquid_glass: true,
+            ..MenuStyle::default()
+        });
+        config.validate().unwrap();
+        assert_eq!(config.settings.gesture_distance(), 76.0);
+        config.settings.menu_style.as_mut().unwrap().center_radius = 100.0;
+        assert!(config.validate().is_err());
+        let legacy = serde_json::json!({"name":"Old","icon":"volume","confirm":false,"action":{"kind":"settings"}});
+        let slot: Slot = serde_json::from_value(legacy).unwrap();
+        assert!(slot.background_color.is_none() && slot.border_color.is_none());
+    }
+
     #[test]
     fn defaults_roundtrip_and_profile_fallback() {
         let c = Config::default();

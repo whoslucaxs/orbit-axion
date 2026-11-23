@@ -1,0 +1,11 @@
+{
+  "commits": {
+    "twbs/icons": "829d2bc2b87543c7d781c815ca4f0feee8cf9e45",
+    "google/material-design-icons": "10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7"
+  },
+  "counts": {
+    "bootstrap": 2078,
+    "material": 2234
+  },
+  "bootstrap_font_conversion": "WOFF2 to TTF, fontTools 4.60.2; outlines unchanged"
+}

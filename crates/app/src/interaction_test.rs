@@ -6,6 +6,7 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
     };
     if case == 14 {
         close(&mut state.borrow_mut(), &overlay);
+        submenu_regression(&editor, &overlay, &mut state.borrow_mut());
         println!(
             "INTERACTION OK: five mouse buttons, keyboard triggers, delayed short releases, click mode and persistent overlay"
         );
@@ -23,6 +24,7 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
             press: Instant::now(),
             gesture: Gesture::default(),
             wheel_slot: None,
+            submenu_hover: None,
             center,
             scale: 1.0,
             held: false,
@@ -103,9 +105,24 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
             assert!(overlay.window().is_visible());
             assert_eq!(native::foreground(), origin, "ring stole focus");
             if case == 0 {
+                let glass = editor.get_menu_liquid_glass();
+                let glazed = overlay.window().take_snapshot().unwrap();
+                editor.set_menu_liquid_glass(!glass);
+                preview_background(&editor, &overlay);
+                let flat = overlay.window().take_snapshot().unwrap();
+                assert_ne!(
+                    glazed.as_bytes(),
+                    flat.as_bytes(),
+                    "glass toggle did not change menu rendering"
+                );
+                editor.set_menu_liquid_glass(glass);
+                preview_background(&editor, &overlay);
                 let before = overlay.window().take_snapshot().unwrap();
                 let app_background = editor.get_background_hex();
                 let app_opacity = editor.get_glass_strength();
+                let app_glass = editor.get_app_liquid_glass();
+                editor.set_app_liquid_glass(!app_glass);
+                let app_accent_hex = editor.get_accent_hex();
                 let app_light = editor.global::<Ink>().get_light();
                 let app_accent = editor.global::<Ink>().get_accent();
                 editor.set_background_hex("#3399FF".into());
@@ -113,7 +130,7 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                 editor
                     .global::<Ink>()
                     .set_light(!editor.global::<Ink>().get_light());
-                editor.global::<Ink>().set_accent(color("#FF3300"));
+                editor.set_accent_hex("#FF3300".into());
                 preview_background(&editor, &overlay);
                 let after = overlay.window().take_snapshot().unwrap();
                 assert_eq!(
@@ -123,6 +140,8 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                 );
                 editor.set_background_hex(app_background);
                 editor.set_glass_strength(app_opacity);
+                editor.set_app_liquid_glass(app_glass);
+                editor.set_accent_hex(app_accent_hex);
                 editor.global::<Ink>().set_light(app_light);
                 editor.global::<Ink>().set_accent(app_accent);
                 preview_background(&editor, &overlay);
@@ -133,6 +152,14 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                     let pixels = window.take_snapshot().unwrap();
                     if filename == "ring-test.png" {
                         let (width, height) = (pixels.width(), pixels.height());
+                        let pixel =
+                            pixels.as_slice()[((height * 30 / 100) * width + width / 2) as usize];
+                        assert!(
+                            pixel.a < 245 && pixel.a > 180,
+                            "menu background opacity was clamped or lost: {}",
+                            pixel.a
+                        );
+
                         for (x, y) in [
                             (0, 0),
                             (width - 1, 0),
@@ -188,6 +215,35 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                     image::ColorType::Rgba8,
                 )
                 .unwrap();
+                editor.set_icon_query("alarm".into());
+                editor.set_icon_library(1);
+                icon_catalog::refresh(&editor);
+                editor.set_page(5);
+                let icons = editor.window().take_snapshot().unwrap();
+                image::save_buffer(
+                    std::env::current_dir()
+                        .unwrap()
+                        .join("target/icon-library-test.png"),
+                    icons.as_bytes(),
+                    icons.width(),
+                    icons.height(),
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
+                editor.set_icon_query("home".into());
+                editor.set_icon_library(2);
+                icon_catalog::refresh(&editor);
+                let material = editor.window().take_snapshot().unwrap();
+                image::save_buffer(
+                    std::env::current_dir()
+                        .unwrap()
+                        .join("target/material-icons-test.png"),
+                    material.as_bytes(),
+                    material.width(),
+                    material.height(),
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
                 editor.set_page(2);
             }
             if case < 5 || (case >= 10 && case.is_multiple_of(2)) {
@@ -229,4 +285,106 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
         }
         run(ui, ring, state, case + 1);
     });
+}
+
+fn submenu_regression(ui: &Editor, ring: &Ring, state: &mut State) {
+    let center = native::cursor().unwrap();
+    let child = "test-submenu".to_string();
+    state.config.menus.push(Menu {
+        id: child.clone(),
+        name: "Child".into(),
+        slots: Default::default(),
+    });
+    state.config.menus[0].slots[0].as_mut().unwrap().action = Action::Submenu { menu: child };
+    state.config.settings.hold = true;
+    state.config.settings.keyboard_key = Some(0x7c);
+    for offset in [0.0, -112.0] {
+        let at = Instant::now() - Duration::from_millis(350);
+        process(
+            state,
+            ui,
+            ring,
+            Input::Press {
+                point: center,
+                foreground: native::foreground(),
+                at,
+            },
+        );
+        choose(state, ui, ring, Some(0));
+        assert!(
+            state.session.as_ref().unwrap().held,
+            "submenu discarded held state"
+        );
+        assert_eq!(state.session.as_ref().unwrap().stack.len(), 2);
+        let scale = state.session.as_ref().unwrap().scale;
+        let released = Point {
+            x: center.x,
+            y: center.y + (offset * scale) as i32,
+        };
+        process(
+            state,
+            ui,
+            ring,
+            Input::Release {
+                point: released,
+                at: at + Duration::from_millis(300),
+            },
+        );
+        assert!(!ring.window().is_visible(), "release left submenu open");
+    }
+    let at = Instant::now() - Duration::from_millis(350);
+    process(
+        state,
+        ui,
+        ring,
+        Input::Press {
+            point: center,
+            foreground: native::foreground(),
+            at,
+        },
+    );
+    let scale = state.session.as_ref().unwrap().scale;
+    process(
+        state,
+        ui,
+        ring,
+        Input::Release {
+            point: Point {
+                x: center.x,
+                y: center.y - (112.0 * scale) as i32,
+            },
+            at: at + Duration::from_millis(300),
+        },
+    );
+    assert!(
+        !ring.window().is_visible(),
+        "releasing on submenu target left it open"
+    );
+    state.config.settings.hold = false;
+    process(
+        state,
+        ui,
+        ring,
+        Input::Press {
+            point: center,
+            foreground: native::foreground(),
+            at: Instant::now(),
+        },
+    );
+    choose(state, ui, ring, Some(0));
+    process(
+        state,
+        ui,
+        ring,
+        Input::Release {
+            point: center,
+            at: Instant::now(),
+        },
+    );
+    assert!(
+        ring.window().is_visible(),
+        "click navigation should stay available"
+    );
+    process(state, ui, ring, Input::Escape);
+    println!("SUBMENU OK: hold release closes child/empty/back targets; click mode preserved");
 }
