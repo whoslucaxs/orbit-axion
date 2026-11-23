@@ -71,6 +71,8 @@ O aplicativo e o menu têm paletas independentes. Escolha cores com o seletor vi
 
 **Requisitos:** Windows 11 x64 e [Microsoft Visual C++ Runtime x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). O MSI atual não instala esse runtime.
 
+O instalador usa o assistente padrão do Windows/WiX, em português, com licença, escolha de usuário/máquina, pasta, progresso e conclusão.
+
 Baixe a **[release mais recente](https://github.com/whoslucaxs/orbit-axion/releases/latest)** e escolha o arquivo **MSI** para instalar ou **EXE** para executar diretamente. Os checksums SHA-256, avisos e licença acompanham os pacotes.
 
 Novas versões são publicadas automaticamente após a validação do CI na main. O acesso aos downloads de um repositório privado exige login no GitHub com permissão de leitura. Para gerar seus próprios pacotes, consulte o [guia de desenvolvimento](docs/DEVELOPMENT.md).

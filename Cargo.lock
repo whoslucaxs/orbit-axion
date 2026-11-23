@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-audio"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "libloading 0.9.1",
  "windows",
@@ -3154,7 +3154,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-axion"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "base64",
  "i-slint-backend-selector",
@@ -3177,7 +3177,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-core"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "serde",
  "serde_json",
@@ -3185,7 +3185,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-windows"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "orbit-core",
  "unicode-normalization",

@@ -1,0 +1,45 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Orbit Axion" Manufacturer="Orbit Axion" Version="$(var.Version)" UpgradeCode="{0DA4CC95-474C-4DB7-A9C0-183BB836DDB2}" Language="1046" Codepage="1252" Scope="perUserOrMachine" InstallerVersion="500">
+    <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="Uma versão mais recente do Orbit Axion já está instalada." IgnoreLanguage="yes" />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="OrbitApp.exe" SourceFile="$(var.Root)/assets/branding/orbit-axion.ico" />
+    <Property Id="ARPPRODUCTICON" Value="OrbitApp.exe" />
+    <Property Id="WixAppFolder" Value="WixPerUserFolder" />
+    <Property Id="WINDOWSBUILD"><RegistrySearch Id="WindowsBuild" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw" Bitness="always64" /></Property>
+    <Launch Condition="Installed OR WINDOWSBUILD &gt;= 22000" Message="O Orbit Axion requer Windows 11 ou mais recente." />
+    <SetProperty Id="INSTALLDIR" Value="[LocalAppDataFolder]Programs\OrbitAxion" Before="CostFinalize" Sequence="both" Condition="NOT INSTALLDIR AND (NOT ALLUSERS OR (ALLUSERS=2 AND MSIINSTALLPERUSER=1))" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize" Sequence="execute" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLDIR" Name="OrbitAxion">
+        <Component Id="OrbitApplication" Guid="*" Bitness="always64">
+          <File Id="OrbitExecutable" Source="$(var.Exe)" Name="orbit-axion.exe" KeyPath="yes">
+            <Shortcut Id="OrbitStart" Directory="ProgramMenuFolder" Name="Orbit Axion" Advertise="yes" Arguments="--watchdog" WorkingDirectory="INSTALLDIR" Icon="OrbitApp.exe" />
+          </File>
+          <File Id="OrbitLicense" Source="$(var.Root)/LICENSE" Name="LICENSE.txt" />
+          <File Id="OrbitNotices" Source="$(var.Root)/dist/THIRD_PARTY_NOTICES.txt" Name="NOTICES.txt" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <Feature Id="Main" Title="Orbit Axion" Level="1"><ComponentRef Id="OrbitApplication" /></Feature>
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+    <WixVariable Id="WixUISupportPerUser" Value="1" />
+    <WixVariable Id="WixUISupportPerMachine" Value="1" />
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
+    <UI>
+      <DialogRef Id="InstallScopeDlg" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Order="2" Condition="LicenseAccepted = &quot;1&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="1" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="2" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="1" Order="3" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="{}" Order="4" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLDIR" Value="[LocalAppDataFolder]Programs\OrbitAxion" Order="5" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLDIR" Value="[ProgramFiles64Folder]OrbitAxion" Order="6" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+      <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="7" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="2" />
+    </UI>
+    <CustomAction Id="OrbitCleanup" FileRef="OrbitExecutable" ExeCommand="--uninstall-settings" Return="check" />
+    <InstallUISequence><Custom Action="OrbitCleanup" Before="ExecuteAction" Condition="Installed AND REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND UILevel &gt;= 3" /></InstallUISequence>
+  </Package>
+</Wix>

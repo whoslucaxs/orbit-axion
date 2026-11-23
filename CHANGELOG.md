@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.11 — instalador padrão — 2026-11-23
+
+- Assistente padrão WiX substitui os diálogos MSI montados manualmente: boas-vindas, licença, escopo, pasta, confirmação, progresso e conclusão em português.
+- Instalação por usuário ou máquina, ícone e atalho preservados; GUID de upgrade mantido para reconhecer versões anteriores.
+- Build independente de msilib, com ferramentas WiX fixadas por versão/SHA-256 e conferência do payload e dos diálogos do MSI.
+
 ## 0.2.10 — releases automáticas — 2026-11-23
 
 - Publicação automática de novas versões da main após formatação, Clippy, testes, compilação e verificação do MSI.

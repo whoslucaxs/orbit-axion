@@ -32,7 +32,7 @@ $orbitVersion = python -c "import tomllib; print(tomllib.load(open('Cargo.toml',
 python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe "dist/OrbitAxion-$orbitVersion-x64.msi" $orbitVersion
 ```
 
-Empacotamento nativo MSI requer Python 3.9–3.12 no Windows (`msilib`). Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build extrai o CAB e compara os hashes dos arquivos incorporados; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.
+O MSI usa o assistente padrão do WiX 5.0.2 (WixUI_InstallDir), em português. O build requer Python 3.9+ e o runtime .NET 8 no Windows; não depende de `msilib` nem de SDK .NET local. As duas ferramentas NuGet são obtidas pelo build em `target/wix/`, com versão e SHA-256 fixados. Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build decompila o MSI e compara os hashes dos arquivos incorporados, além de conferir os diálogos padrão; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.
 
 O updater consulta releases GitHub do repositório configurado, compara versões, verifica SHA-256 fornecido pelo GitHub e pede consentimento para instalar. Para repositório privado, `ORBIT_GITHUB_TOKEN` precisa permitir leitura de releases. O token não é salvo no JSON. Sem release publicada, o app informa indisponibilidade; não há atualização fictícia.
 

@@ -20,5 +20,6 @@ for package in sorted(packages, key=lambda p: (p["name"], p["version"])):
 for notice in sorted((root / "assets" / "icons").rglob("*-LICENSE.txt")):
     sections.append(notice.name + "\n" + notice.read_text(encoding="utf-8"))
 sections.append("Brand icon sources\n" + (root / "assets/icons/custom/SOURCES.txt").read_text(encoding="utf-8"))
+sections.append("WiX Toolset 5.0.2 / standard installer UI\n" + (root / "packaging/windows-msi/WIX-LICENSE.txt").read_text(encoding="utf-8"))
 output.write_text("\n\n".join(sections), encoding="utf-8")
 print(output)

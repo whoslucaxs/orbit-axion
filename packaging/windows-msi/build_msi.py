@@ -1,91 +1,91 @@
-"""Native MSI authoring, Python 3.9/3.10 on Windows. Does not install anything."""
-import pathlib, sys, uuid, tempfile, subprocess, hashlib
-import msilib
-from msilib import schema, sequence
-UPGRADE = '{0DA4CC95-474C-4DB7-A9C0-183BB836DDB2}'
-def guid(key): return '{' + str(uuid.uuid5(uuid.UUID(UPGRADE.strip('{}')), key)).upper() + '}'
+"""Build the standard WiX MSI; requires Python 3.9+ and .NET runtime 6/8+."""
+import hashlib
+import io
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+import xml.etree.ElementTree as ET
+import zipfile
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+VERSION = "5.0.2"
+PACKAGES = {
+    "wix": "f30ef0c74e2a986126539c5780be93ac24e8136eaf723b1937b26272703ae173",
+    "wixtoolset.ui.wixext": "5ef2c707614b9f70b6bbadd2d4abcb4124efee215e9b16bfbc80113079a604c7",
+}
+
+def toolchain():
+    if not shutil.which("dotnet"):
+        raise RuntimeError("Install the .NET 8 runtime to build the MSI")
+    cache = ROOT / "target" / "wix" / VERSION
+    for name, digest in PACKAGES.items():
+        directory = cache / name
+        marker = directory / ".verified"
+        if marker.is_file() and marker.read_text() == digest:
+            continue
+        url = f"https://api.nuget.org/v3-flatcontainer/{name}/{VERSION}/{name}.{VERSION}.nupkg"
+        with urllib.request.urlopen(url, timeout=90) as response:
+            data = response.read()
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise RuntimeError(f"WiX package checksum mismatch: {name}")
+        directory.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            for entry in archive.infolist():
+                target = (directory / entry.filename).resolve()
+                if not target.is_relative_to(directory.resolve()):
+                    raise RuntimeError("Unsafe WiX archive path")
+                if not entry.is_dir():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(entry))
+        marker.write_text(digest)
+    return ["dotnet", str(cache / "wix/tools/net6.0/any/wix.dll")], cache / "wixtoolset.ui.wixext/wixext5/WixToolset.UI.wixext.dll"
+
+def rtf(text):
+    escaped = []
+    for character in text:
+        if character in "\\{}":
+            escaped.append("\\" + character)
+        elif character == "\n":
+            escaped.append("\\par\n")
+        elif ord(character) > 127:
+            code = ord(character)
+            escaped.append(f"\\u{code if code < 32768 else code - 65536}?")
+        else:
+            escaped.append(character)
+    return r"{\rtf1\ansi\deff0{\fonttbl{\f0 Segoe UI;}}\f0\fs18 " + "".join(escaped) + "}"
+
 def build(exe, output, version):
     exe, output = pathlib.Path(exe).resolve(), pathlib.Path(output).resolve()
-    assert exe.is_file(), 'Build the exe first'
+    if not exe.is_file():
+        raise RuntimeError("Build the EXE first")
+    notices = ROOT / "dist/THIRD_PARTY_NOTICES.txt"
+    if not notices.is_file():
+        raise RuntimeError("Run collect_notices.py first")
+    command, extension = toolchain()
     output.parent.mkdir(parents=True, exist_ok=True)
-    db = msilib.init_database(str(output), schema, 'Orbit Axion', guid('product:'+version), version, 'Orbit Axion')
-    si = db.GetSummaryInformation(20)
-    si.SetProperty(msilib.PID_TEMPLATE, 'x64;1033')
-    si.SetProperty(msilib.PID_PAGECOUNT, 500)
-    si.SetProperty(msilib.PID_WORDCOUNT, 2)
-    si.Persist()
-    msilib.add_tables(db, sequence)
-    def data(table, rows):
-        for row in rows:
-            if table.endswith('Sequence'):
-                view=db.OpenView("SELECT Action FROM `%s` WHERE Action='%s'"%(table,row[0]));view.Execute(None)
-                exists=view.Fetch();view.Close()
-                if exists:
-                    condition='NULL' if row[1] is None else "'%s'"%row[1].replace("'","''")
-                    db.OpenView("UPDATE `%s` SET Condition=%s, Sequence=%s WHERE Action='%s'"%(table,condition,row[2],row[0])).Execute(None)
-                    continue
-            msilib.add_data(db, table, [row])
-    data('Icon', [('OrbitAppIcon', msilib.Binary(str(pathlib.Path(__file__).resolve().parents[2]/'assets/branding/orbit-axion.ico')))])
-    data('Property', [('ARPPRODUCTICON','OrbitAppIcon'),('UpgradeCode',UPGRADE),('ALLUSERS','2'),('MSIINSTALLPERUSER','1'),('INSTALLLEVEL','1'),('ARPNOMODIFY','1'),('SecureCustomProperties','ALLUSERS;MSIINSTALLPERUSER;OLDPRODUCTS;NEWERPRODUCTS'),('DefaultUIFont','OrbitFont')])
-    data('TextStyle',[('OrbitFont','Segoe UI',10,None,0),('OrbitTitle','Segoe UI',18,0x00ACAC,1)])
-    data('LaunchCondition',[('VersionNT64','Orbit Axion requires Windows x64.'),('NOT NEWERPRODUCTS','A newer Orbit Axion version is installed.')])
-    data('AppSearch',[('WINDOWSBUILD','WindowsBuild')])
-    data('RegLocator',[('WindowsBuild',2,r'SOFTWARE\Microsoft\Windows NT\CurrentVersion','CurrentBuildNumber',18)])
-    data('InstallUISequence',[('FindRelatedProducts',None,25),('AppSearch',None,50),('LaunchConditions',None,100)])
-    data('InstallExecuteSequence',[('FindRelatedProducts',None,25),('AppSearch',None,50),('LaunchConditions',None,100)])
-    data('LaunchCondition',[('WINDOWSBUILD >= 22000','Orbit Axion requires Windows 11 or newer.')])
-    data('Upgrade',[(UPGRADE,None,version,None,1,None,'OLDPRODUCTS'),(UPGRADE,version,None,None,258,None,'NEWERPRODUCTS')])
-    db.OpenView("UPDATE InstallExecuteSequence SET Sequence=1550 WHERE Action='RemoveExistingProducts'").Execute(None)
-    cab = msilib.CAB('OrbitCab')
-    root = msilib.Directory(db,cab,None,str(exe.parent),'TARGETDIR','SourceDir')
-    programs = msilib.Directory(db,cab,root,'.','ProgramFiles64Folder','.')
-    app = msilib.Directory(db,cab,programs,'.','INSTALLDIR','OrbitAxion')
-    menu = msilib.Directory(db,cab,root,'.','ProgramMenuFolder','.')
-    feature = msilib.Feature(db,'Main','Orbit Axion','Application, editor and tray',1,directory='INSTALLDIR')
-    app.start_component('OrbitExecutable',feature,256,keyfile=exe.name,uuid=guid('exe'))
-    fileid = app.add_file(exe.name)
-    app.start_component('OrbitLicense',feature,256,uuid=guid('license'))
-    app.add_file('LICENSE.txt',src=str(pathlib.Path(__file__).resolve().parents[2]/'LICENSE'))
-    notices = pathlib.Path(__file__).resolve().parents[2]/'dist'/'THIRD_PARTY_NOTICES.txt'
-    if not notices.is_file(): raise RuntimeError('Run collect_notices.py first')
-    app.start_component('OrbitNotices',feature,256,uuid=guid('notices'))
-    app.add_file('NOTICES.txt',src=str(notices))
-    menu.start_component('OrbitShortcut',feature,256,uuid=guid('shortcut'))
-    data('Registry',[('OrbitInstall',-1,r'Software\OrbitAxion','InstallPath','[INSTALLDIR]','OrbitShortcut')])
-    db.OpenView("UPDATE Component SET KeyPath='OrbitInstall', Attributes=260 WHERE Component='OrbitShortcut'").Execute(None)
-    data('Shortcut',[('OrbitStart','ProgramMenuFolder','Orbit|Orbit Axion','OrbitShortcut','[#%s]'%fileid,'--watchdog','Open Orbit Axion',None,'OrbitAppIcon',0,1,'INSTALLDIR')])
-    welcome=msilib.Dialog(db,'OrbitWelcome',50,50,370,245,3,'Orbit Axion','Install','Install','Cancel')
-    welcome.control('Title','Text',20,18,330,35,3,None,'{\\OrbitTitle}Orbit Axion',None,None)
-    welcome.control('Text','Text',20,60,325,45,3,None,'Radial actions for Windows. GNU GPL v3. Choose scope:',None,None)
-    user=welcome.control('User','PushButton',20,115,155,24,3,None,'Only for me','Machine',None)
-    user.event('[MSIINSTALLPERUSER]','1','NOT Installed',1)
-    machine=welcome.control('Machine','PushButton',190,115,155,24,3,None,'Everyone (requires UAC)','Install',None)
-    machine.event('[MSIINSTALLPERUSER]','{}','NOT Installed',1)
-    welcome.control('Scope','Text',20,150,325,25,3,None,'Per-user: [MSIINSTALLPERUSER] (1 = only me)',None,None)
-    install=welcome.control('Install','PushButton',190,205,75,24,3,None,'Install','Cancel',None)
-    install.event('EndDialog','Return','1',1)
-    cancel=welcome.control('Cancel','PushButton',275,205,75,24,3,None,'Cancel','User',None)
-    cancel.event('EndDialog','Exit','1',1)
-    data('InstallUISequence',[('OrbitWelcome','NOT Installed',750)])
-    for name,title,text in [('ExitDialog','Finished','Operation completed. Open Orbit Axion from the Start menu.'),('FatalError','Failed','Windows Installer failed. The installation transaction is rolled back.'),('UserExit','Cancelled','Operation cancelled.')]:
-        dlg=msilib.Dialog(db,name,50,50,370,200,3,title,'Close','Close','Close')
-        dlg.control('Text','Text',20,25,330,100,3,None,text,None,None)
-        dlg.control('Close','PushButton',275,155,75,24,3,None,'Close',None,None).event('EndDialog','Return','1',1)
-    data('CustomAction',[('OrbitCleanup',18,fileid,'--uninstall-settings')])
-    data('InstallUISequence',[('OrbitCleanup','Installed AND REMOVE="ALL" AND UILevel >= 3',1250)])
-    with tempfile.TemporaryDirectory(prefix="orbit-msi-",dir=str(output.parent)) as scratch:
-        scratch=pathlib.Path(scratch).resolve()
-        if scratch.parent!=output.parent: raise RuntimeError("Unexpected scratch path")
-        archive=scratch/'payload.cab'
-        msilib.FCICreate(str(archive),cab.files)
-        data('Media',[(1,cab.index,None,'#'+cab.name,None,None)])
-        msilib.add_stream(db,cab.name,str(archive))
-        extracted=scratch/'extracted';extracted.mkdir()
-        subprocess.run(['expand.exe',str(archive),'-F:*',str(extracted)],check=True,capture_output=True)
-        for source, name in cab.files:
-            if hashlib.sha256(pathlib.Path(source).read_bytes()).digest()!=hashlib.sha256((extracted/name).read_bytes()).digest():
-                raise RuntimeError('Payload checksum mismatch: '+name)
-
-    db.Commit()
+    with tempfile.TemporaryDirectory(prefix="orbit-wix-", dir=output.parent) as scratch:
+        scratch = pathlib.Path(scratch)
+        license_rtf = scratch / "license.rtf"
+        license_rtf.write_text(rtf((ROOT / "LICENSE").read_text(encoding="utf-8")), encoding="ascii")
+        subprocess.run(command + ["build", str(ROOT / "packaging/windows-msi/Package.wxs"), "-arch", "x64", "-ext", str(extension), "-culture", "pt-BR", "-d", f"Version={version}", "-d", f"Root={ROOT}", "-d", f"Exe={exe}", "-d", f"LicenseRtf={license_rtf}", "-o", str(output), "-pdbtype", "none"], check=True)
+        subprocess.run(command + ["msi", "validate", str(output)], check=True)
+        extracted = scratch / "extracted"
+        manifest = scratch / "package.wxs"
+        subprocess.run(command + ["msi", "decompile", str(output), "-x", str(extracted), "-o", str(manifest)], check=True)
+        for file_id, source in {"OrbitExecutable": exe, "OrbitLicense": ROOT / "LICENSE", "OrbitNotices": notices}.items():
+            actual = extracted / "File" / file_id
+            if hashlib.sha256(source.read_bytes()).digest() != hashlib.sha256(actual.read_bytes()).digest():
+                raise RuntimeError(f"MSI payload mismatch: {file_id}")
+        ns = {"w": "http://wixtoolset.org/schemas/v4/wxs"}
+        tree = ET.parse(manifest)
+        dialogs = {node.get("Id") for node in tree.findall(".//w:Dialog", ns)}
+        required = {"WelcomeDlg", "LicenseAgreementDlg", "InstallScopeDlg", "InstallDirDlg", "VerifyReadyDlg", "ProgressDlg", "ExitDialog"}
+        if not required.issubset(dialogs) or "OrbitWelcome" in dialogs:
+            raise RuntimeError("Standard installer dialogs are missing")
     print(output)
-if __name__=='__main__': build(*sys.argv[1:])
+
+if __name__ == "__main__":
+    build(*sys.argv[1:])

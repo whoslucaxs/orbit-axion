@@ -13,3 +13,7 @@ O repositório fornece Cargo.lock e fontes correspondentes. Ao redistribuir bin�
 Bootstrap Icons (MIT) e Material Icons (Apache-2.0) são distribuídos como fontes e catálogo em assets/icons. As revisões exatas, contagens e conversão WOFF2→TTF estão em assets/icons/SOURCES.json. As licenças completas acompanham os arquivos e são agregadas ao NOTICES.txt do MSI. As fontes são incorporadas ao executável pelo compilador Slint, sem instalação de fontes no Windows.
 
 A referência liquid-glass-skill é voltada a SwiftUI/Apple. O tema deste projeto é uma adaptação visual independente em Slint, sem código SwiftUI nem refração nativa Apple.
+
+## Instalador
+
+WiX Toolset 5.0.2 e sua extensão de UI (MS-RL) são ferramentas de build fixadas por versão e SHA-256. A licença está em `packaging/windows-msi/WIX-LICENSE.txt` e acompanha o inventário distribuído no MSI. O instalador usa os diálogos originais da biblioteca WixUI, com a navegação de escopo/pasta definida em `Package.wxs`; não é um bundle Burn.
