@@ -10,14 +10,21 @@ on:
         description: 'Enviar EXE/MSI para o armazenamento do Actions (requer cota disponível)'
         type: boolean
         default: false
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   check:
     name: Validate and package Windows
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -47,6 +54,13 @@ jobs:
           "Compilação, testes e verificação do conteúdo do MSI concluídos." >> $env:GITHUB_STEP_SUMMARY
           "Upload é opcional: execute manualmente com upload_artifacts habilitado e cota disponível." >> $env:GITHUB_STEP_SUMMARY
           Get-Content dist/SHA256SUMS.txt >> $env:GITHUB_STEP_SUMMARY
+      - name: Publish release automatically
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: ./.github/scripts/publish-release.ps1
       - name: Upload packages (manual opt-in)
         if: github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
         uses: actions/upload-artifact@v4

@@ -57,3 +57,11 @@ O workflow **Rust Windows** verifica formatação, Clippy, testes, executáveis 
 O upload de pacotes é independente da validação. Para disponibilizar EXE/MSI como artifacts, abra **Actions → Rust Windows → Run workflow** e habilite `upload_artifacts`. Os arquivos ficam disponíveis por três dias. Esse envio depende da cota de armazenamento da conta GitHub; sem cota, a etapa de upload falha explicitamente. Compilação, testes e empacotamento continuam sendo verificados nas execuções automáticas.
 
 A versão do instalador é lida de `Cargo.toml`; o resumo da execução contém os hashes SHA-256 dos pacotes gerados. A execução com upload habilitado inclui EXE, MSI, inventário de dependências e `SHA256SUMS.txt`.
+
+## Releases automáticas
+
+Altere `workspace.package.version` em `Cargo.toml`, atualize `Cargo.lock` e o changelog e envie as mudanças à `main`. Após passar em todas as etapas do workflow, a automação cria a tag `v<versão>` e publica a release com EXE, MSI, `SHA256SUMS.txt`, avisos e licença. Não é necessário criar a tag nem subir arquivos manualmente.
+
+A publicação usa o `GITHUB_TOKEN` do workflow, com permissão `contents: write` e credenciais disponibilizadas somente à etapa de publicação. Os arquivos são enviados diretamente para Releases, sem depender do armazenamento de artifacts do Actions. Pull requests não publicam releases.
+
+Se a versão já estiver publicada, a etapa termina preservando seus arquivos. Um draft interrompido só é retomado quando pertence ao mesmo commit; versões de pré-lançamento em Cargo são marcadas como prerelease e não substituem a versão estável mais recente. A execução manual na main também pode concluir a publicação de uma versão pendente.

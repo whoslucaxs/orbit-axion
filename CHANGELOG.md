@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.10 — releases automáticas — 2026-11-23
+
+- Publicação automática de novas versões da main após formatação, Clippy, testes, compilação e verificação do MSI.
+- EXE, MSI, checksums, avisos e licença enviados diretamente para Releases, com verificação SHA-256 antes da publicação.
+- Releases existentes preservadas; drafts interrompidos do mesmo commit podem ser concluídos por nova execução.
+
 ## 0.2.9 — identidade do aplicativo — 2026-11-23
 
 - Imagem enviada pelo usuário aplicada ao executável Windows, janelas, bandeja e marca do editor.

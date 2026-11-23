@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whoslucaxs/orbit-axion/releases/tag/v0.2.9">Baixar v0.2.9</a> ·
+  <a href="https://github.com/whoslucaxs/orbit-axion/releases/latest">Baixar versão mais recente</a> ·
   <a href="#primeiros-passos">Primeiros passos</a> ·
   <a href="#sua-aparência-seu-menu">Personalização</a> ·
   <a href="docs/DEVELOPMENT.md">Compilar e testar</a> ·
@@ -71,13 +71,9 @@ O aplicativo e o menu têm paletas independentes. Escolha cores com o seletor vi
 
 **Requisitos:** Windows 11 x64 e [Microsoft Visual C++ Runtime x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). O MSI atual não instala esse runtime.
 
-A **[v0.2.9 está disponível nas Releases](https://github.com/whoslucaxs/orbit-axion/releases/tag/v0.2.9)**:
+Baixe a **[release mais recente](https://github.com/whoslucaxs/orbit-axion/releases/latest)** e escolha o arquivo **MSI** para instalar ou **EXE** para executar diretamente. Os checksums SHA-256, avisos e licença acompanham os pacotes.
 
-- **[Baixar instalador MSI](https://github.com/whoslucaxs/orbit-axion/releases/download/v0.2.9/OrbitAxion-0.2.9-x64.msi)** — instalação com atalho no Windows.
-- **[Baixar executável EXE](https://github.com/whoslucaxs/orbit-axion/releases/download/v0.2.9/OrbitAxion-0.2.9.exe)** — execução direta.
-- [Checksums SHA-256](https://github.com/whoslucaxs/orbit-axion/releases/download/v0.2.9/SHA256SUMS-0.2.9.txt), avisos e licença acompanham a release.
-
-O acesso aos downloads de um repositório privado exige login no GitHub com permissão de leitura. Para gerar seus próprios pacotes, consulte o [guia de desenvolvimento](docs/DEVELOPMENT.md).
+Novas versões são publicadas automaticamente após a validação do CI na main. O acesso aos downloads de um repositório privado exige login no GitHub com permissão de leitura. Para gerar seus próprios pacotes, consulte o [guia de desenvolvimento](docs/DEVELOPMENT.md).
 
 1. Abra o Orbit Axion e entre em **Menus e ações**.
 2. Escolha uma das oito posições, defina a ação e clique em **Salvar ação**.
@@ -117,7 +113,7 @@ cargo build --locked --release -p orbit-axion --bins
 .\target\release\orbit-axion.exe
 ```
 
-O [guia de desenvolvimento](docs/DEVELOPMENT.md) reúne comandos de teste, diagnósticos, geração do MSI, configuração do updater e organização do código. O CI sempre compila, testa e verifica o pacote; o upload de arquivos é opcional na execução manual para não depender da cota de artifacts em cada push.
+O [guia de desenvolvimento](docs/DEVELOPMENT.md) reúne comandos de teste, diagnósticos, geração do MSI, configuração do updater e organização do código. O CI compila, testa, verifica o pacote e publica novas versões da main diretamente em Releases. O upload adicional para artifacts do Actions continua opcional na execução manual.
 
 | Leia também | Conteúdo |
 | --- | --- |
@@ -129,7 +125,7 @@ O [guia de desenvolvimento](docs/DEVELOPMENT.md) reúne comandos de teste, diagn
 
 ### Estado do projeto
 
-Versão **0.2.9**, em desenvolvimento. O efeito Liquid Glass é uma adaptação visual para Slint. Instalação, upgrade e rollback do MSI em VM, jogos, processos elevados, múltiplos DPIs e acessibilidade ainda precisam de validação dedicada. A busca sem foco não suporta composição IME; nesse caso, use a seleção pelo mouse.
+Em desenvolvimento; consulte a [release mais recente](https://github.com/whoslucaxs/orbit-axion/releases/latest) para a versão atual. O efeito Liquid Glass é uma adaptação visual para Slint. Instalação, upgrade e rollback do MSI em VM, jogos, processos elevados, múltiplos DPIs e acessibilidade ainda precisam de validação dedicada. A busca sem foco não suporta composição IME; nesse caso, use a seleção pelo mouse.
 
 ## Licença
 
