@@ -63,6 +63,6 @@ A versão do instalador é lida de `Cargo.toml`; o resumo da execução contém 
 
 Altere `workspace.package.version` em `Cargo.toml`, atualize `Cargo.lock` e o changelog e envie as mudanças à `main`. Após passar em todas as etapas do workflow, a automação cria a tag `v<versão>` e publica a release com EXE, MSI, `SHA256SUMS.txt`, avisos e licença. Não é necessário criar a tag nem subir arquivos manualmente.
 
-A publicação usa o `GITHUB_TOKEN` do workflow, com permissão `contents: write` e credenciais disponibilizadas somente à etapa de publicação. Os arquivos são enviados diretamente para Releases, sem depender do armazenamento de artifacts do Actions. Pull requests não publicam releases.
+A publicação usa o `GITHUB_TOKEN` do workflow, com permissão `contents: write`. A variável `GH_TOKEN` é disponibilizada somente à etapa de publicação; o checkout não persiste credenciais. Os arquivos são enviados diretamente para Releases, sem depender do armazenamento de artifacts do Actions. Pull requests não publicam releases.
 
 Se a versão já estiver publicada, a etapa termina preservando seus arquivos. Um draft interrompido só é retomado quando pertence ao mesmo commit; versões de pré-lançamento em Cargo são marcadas como prerelease e não substituem a versão estável mais recente. A execução manual na main também pode concluir a publicação de uma versão pendente.
