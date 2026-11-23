@@ -1,3 +1,15 @@
+# Verificações locais e CI — 0.2.11 — 2026-11-23
+
+- CI Windows aprovado: formatação, Clippy, 26 testes Rust, um teste Python de RTF, build release, MSI e publicação automática.
+- Execução: https://github.com/whoslucaxs/orbit-axion/actions/runs/45225110341
+- Release v0.2.11 publicada por `github-actions[bot]`, com cinco assets e alvo no commit `cd73325cd5928116dafedc31eda5b8b579ce3396`.
+- EXE, MSI e checksums baixados da release; SHA-256 confere com os digests do GitHub e SHA256SUMS. MSI publicado passou na validação ICE; executável extraído é idêntico ao EXE publicado. Licença e notices extraídos conferem com os digests dos assets correspondentes.
+- Metadados verificaram português (1046), sete diálogos padrão, navegação para escopo e pasta, propriedades para instalação por usuário ou máquina e preservação do UpgradeCode. Build local também passou usando .NET 8.
+- Extração do ícone pelo Windows verificada nos tamanhos grande e pequeno. A prévia de diagnóstico não foi instalada.
+- O ambiente bloqueou o controle visual de `msiexec.exe`; o assistente não foi percorrido automaticamente. Instalação/upgrade/rollback em VM continuam pendentes.
+
+---
+
 # Verificações locais e CI — 0.2.10 — 2026-11-23
 
 - CI Windows aprovado: formatação, Clippy, 26 testes, build release, geração e verificação do MSI e publicação automática.
