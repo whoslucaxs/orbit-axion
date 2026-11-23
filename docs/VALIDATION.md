@@ -1,3 +1,14 @@
+# Verificações locais e CI — 0.2.10 — 2026-11-23
+
+- CI Windows aprovado: formatação, Clippy, 26 testes, build release, geração e verificação do MSI e publicação automática.
+- Execução: https://github.com/whoslucaxs/orbit-axion/actions/runs/45211913693
+- Release v0.2.10 criada por `github-actions[bot]`, com cinco assets publicados e alvo no commit validado `bb91849d1a268b84de9005641e41f4bb5ed923b6`.
+- EXE e MSI baixados da release; SHA-256 confere com o arquivo de checksums e os digests do GitHub.
+- Caminho de versão existente exercitado com a v0.2.9: arquivos publicados preservados.
+- Recuperação de draft interrompido e instalação/upgrade/rollback do MSI em VM não foram exercitados nesta rodada.
+
+---
+
 # Verificações locais — 0.2.9 — 2026-11-23
 
 - PNG original preservado byte a byte, com transparência. ICO contém 16, 20, 24, 32, 40, 48, 64, 128 e 256 pixels.
