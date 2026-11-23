@@ -1,3 +1,13 @@
+# Verificações locais — 0.2.12 — 2026-11-23
+
+- 27 testes unitários passaram; formatação e Clippy sem avisos.
+- `--ui-test` verificou bloqueio de entrada por seleção implícita e soltura no submenu configurado para clique, clique com acionamento pelo botão esquerdo, confirmação por Enter e preservação do modo anterior.
+- A opção por ação foi desmarcada/marcada, salva, recarregada ao trocar de posição e serializada. JSON antigo sem a opção mantém o comportamento anterior.
+- Captura real do editor em `target/submenu-click-test.png` inspecionada: seletor de destino, checkbox e explicação visíveis.
+- Teste de controlador usa eventos sem instalar hooks nem injetar entrada. Uso prolongado com mouse físico e instalação/upgrade em VM continuam pendentes.
+
+---
+
 # Verificações locais e CI — 0.2.11 — 2026-11-23
 
 - CI Windows aprovado: formatação, Clippy, 26 testes Rust, um teste Python de RTF, build release, MSI e publicação automática.

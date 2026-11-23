@@ -203,6 +203,7 @@ export component Editor inherits Window {
     in-out property <bool> confirm: false;
     in-out property <bool> elevated: false;
     in-out property <int> submenu-index: 0;
+    in-out property <bool> submenu-click-only: false;
     in-out property <string> icon-name;
     in-out property <bool> icon-loading: false;
     in-out property <string> icon-source-target;
@@ -412,7 +413,11 @@ export component Editor inherits Window {
                             Slider { value <=> root.audio-step; minimum: 0.5; maximum: 10; }
                             Caption { text: root.audio-step + (root.audio-provider == 0 ? "% / notch" : " dB / notch"); }
                         }
-                        if root.action-type == 9: ComboBox { model: root.menus; current-index: root.submenu-index; selected(value) => { root.submenu-index = self.current-index; } }
+                        if root.action-type == 9: VerticalBox { padding: 0px; spacing: 8px;
+                            ComboBox { model: root.menus; current-index: root.submenu-index; selected(value) => { root.submenu-index = self.current-index; } }
+                            CheckBox { text: root.en ? "Open only on click" : "Abrir somente ao clicar"; checked <=> root.submenu-click-only; }
+                            Caption { text: root.en ? "Click or press Enter to open. When disabled, holding over the button also opens it." : "Clique ou pressione Enter para abrir. Desmarcado, segurar sobre o botão também abre."; wrap: word-wrap; }
+                        }
                         if root.action-type == 10: VerticalBox { padding: 0px; spacing: 8px;
                             ComboBox { model: root.macro-steps; current-index: root.macro-index; selected(value) => { root.macro-index = self.current-index; } }
                             ComboBox { model: root.en ? ["Shortcut", "Text", "Open", "Command", "Copy slot action"] : ["Atalho", "Texto", "Abrir", "Comando", "Copiar ação de posição"]; current-index: root.macro-kind; selected(value) => { root.macro-kind = self.current-index; } }
@@ -487,7 +492,7 @@ export component Editor inherits Window {
                     if root.trigger-source == 1: Caption { text: root.en ? "Choose a key from the list or capture it below, then Apply preferences. Test activation in another app; typing stays free in this editor." : "Escolha a tecla na lista ou capture abaixo e aplique as preferências. Teste a abertura em outro app; neste editor a digitação fica livre."; wrap: word-wrap; }
                     Pill { text: root.en ? "Capture mouse button or keyboard key (10 s)" : "Capturar botão do mouse ou tecla (10 s)"; clicked=>{root.learn-button();} }
                     CheckBox { text: root.en ? "Hold, move and release (off = click mode)" : "Segurar, mover e soltar (desmarcado = modo clique)"; checked <=> root.hold; }
-                    Caption { text: root.en ? "A short tap keeps the menu open. Hold over a submenu to enter; release finishes the gesture." : "Clique curto mantém o menu aberto. Segure sobre um submenu para entrar; soltar finaliza o gesto."; wrap: word-wrap; }
+                    Caption { text: root.en ? "A short tap keeps the menu open. Hold over a submenu to enter, unless it requires a click; release finishes the gesture." : "Clique curto mantém o menu aberto. Segure sobre um submenu para entrar, exceto quando ele exigir clique; soltar finaliza o gesto."; wrap: word-wrap; }
                     SpinBox { value <=> root.hold-ms; minimum: 50; maximum: 2000; }
                     Caption { text: root.en ? "Minimum gesture distance" : "Distância mínima do gesto"; }
                     Slider { value <=> root.distance; minimum: 10; maximum: 180; }

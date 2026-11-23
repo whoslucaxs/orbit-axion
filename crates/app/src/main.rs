@@ -321,7 +321,7 @@ fn refresh_ring(state: &mut State, ring: &Ring) {
         ring.set_level("".into());
     }
 }
-fn choose(state: &mut State, ui: &Editor, ring: &Ring, selected: Option<usize>) {
+fn choose(state: &mut State, ui: &Editor, ring: &Ring, selected: Option<usize>, clicked: bool) {
     let Some(s) = state.session.as_ref() else {
         return;
     };
@@ -341,7 +341,10 @@ fn choose(state: &mut State, ui: &Editor, ring: &Ring, selected: Option<usize>) 
     };
     let origin = s.origin;
     match &slot.action {
-        Action::Submenu { menu } => {
+        Action::Submenu {
+            click_only: true, ..
+        } if !clicked => {}
+        Action::Submenu { menu, .. } => {
             let s = state.session.as_mut().unwrap();
             s.stack.push(menu.clone());
             s.query.clear();
@@ -417,7 +420,7 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
                     s.gesture.reset();
                 } else {
                     let (x, y) = point(s, p);
-                    choose(state, ui, ring, icon_at(x, y));
+                    choose(state, ui, ring, icon_at(x, y), true);
                 }
                 return;
             }
@@ -520,8 +523,10 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
             point: released,
             at,
         } => {
+            let held = s.held;
             s.held = false;
-            if state.config.settings.hold
+            if held
+                && state.config.settings.hold
                 && (at.saturating_duration_since(s.press)
                     >= Duration::from_millis(state.config.settings.hold_ms)
                     || s.stack.len() > 1)
@@ -535,14 +540,14 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
                     } else {
                         s.selected
                     };
-                    choose(state, ui, ring, selected);
+                    choose(state, ui, ring, selected, false);
                     close(state, ring);
                 }
             }
         }
         Input::Select(p) => {
             let (x, y) = point(s, p);
-            choose(state, ui, ring, icon_at(x, y));
+            choose(state, ui, ring, icon_at(x, y), true);
         }
         Input::Wheel { point: p, delta } => {
             let (x, y) = point(s, p);
@@ -593,7 +598,7 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
         }
         Input::Enter => {
             let selected = s.selected;
-            choose(state, ui, ring, selected);
+            choose(state, ui, ring, selected, true);
         }
     }
 }
@@ -856,9 +861,15 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
                 let candidate = s.selected.filter(|&i| {
                     state.config.settings.hold
                         && s.held
-                        && s.slots[i]
-                            .as_ref()
-                            .is_some_and(|slot| matches!(slot.action, Action::Submenu { .. }))
+                        && s.slots[i].as_ref().is_some_and(|slot| {
+                            matches!(
+                                slot.action,
+                                Action::Submenu {
+                                    click_only: false,
+                                    ..
+                                }
+                            )
+                        })
                 });
                 if let Some(i) = candidate {
                     match s.submenu_hover {
@@ -893,7 +904,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
     if should_close {
         close(state, ring);
     } else if let Some(index) = enter_submenu {
-        choose(state, ui, ring, Some(index));
+        choose(state, ui, ring, Some(index), false);
     }
     while let Ok(reply) = state.audio.replies.try_recv() {
         if let Some(s) = state.session.as_ref()

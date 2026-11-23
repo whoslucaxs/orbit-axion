@@ -91,7 +91,7 @@ Novas versões são publicadas automaticamente após a validação do CI na main
 | --- | --- |
 | Segurar | Mantenha o acionador pressionado, aponte para a ação e solte. |
 | Clique | Abra com um clique e selecione a ação no menu. |
-| Submenus no modo segurar | Pare 300 ms sobre um submenu para entrar; soltar encerra o gesto. |
+| Submenus no modo segurar | Pare 300 ms sobre um submenu para entrar; marque **Abrir somente ao clicar** na ação para exigir clique ou Enter. Soltar encerra o gesto. |
 | Roda sobre volume | Ajusta o volume; soltar após rolar não executa outra ação. |
 | Teclado | Escolha uma tecla individual na lista ou use a captura. Repetições não reabrem o menu. |
 | Dentro do editor | O acionador fica livre para permitir a configuração e a digitação. |

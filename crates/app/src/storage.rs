@@ -436,7 +436,7 @@ fn profile_export(c: &Config, id: &str) -> Result<Config, String> {
         let mut menu = c.menu(&id).ok_or("Menu ausente")?.clone();
         menu.slots = c.effective_slots(p, &id);
         for slot in menu.slots.iter().flatten() {
-            if let Action::Submenu { menu } = &slot.action {
+            if let Action::Submenu { menu, .. } = &slot.action {
                 stack.push(menu.clone());
             }
         }
@@ -483,7 +483,7 @@ fn merge_profile(mut base: Config, incoming: &Config, id: &str) -> Result<Config
         let menu = incoming.menu(&id).ok_or("Menu do pacote ausente")?.clone();
         map.insert(id, format!("{prefix}-{}", map.len()));
         for slot in menu.slots.iter().flatten() {
-            if let Action::Submenu { menu } = &slot.action {
+            if let Action::Submenu { menu, .. } = &slot.action {
                 stack.push(menu.clone());
             }
         }
@@ -492,7 +492,7 @@ fn merge_profile(mut base: Config, incoming: &Config, id: &str) -> Result<Config
     for mut menu in menus {
         menu.id = map[&menu.id].clone();
         for slot in menu.slots.iter_mut().flatten() {
-            if let Action::Submenu { menu } = &mut slot.action {
+            if let Action::Submenu { menu, .. } = &mut slot.action {
                 *menu = map[menu].clone();
             }
         }

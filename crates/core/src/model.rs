@@ -272,6 +272,8 @@ pub enum Action {
     },
     Submenu {
         menu: String,
+        #[serde(default)]
+        click_only: bool,
     },
     Macro {
         steps: Vec<MacroStep>,
@@ -550,7 +552,7 @@ impl Config {
                 path.insert(id);
                 stack.push((id, true));
                 for slot in menu.slots.iter().flatten() {
-                    if let Action::Submenu { menu } = &slot.action {
+                    if let Action::Submenu { menu, .. } = &slot.action {
                         stack.push((menu, false));
                     }
                 }
@@ -605,7 +607,7 @@ impl Config {
                 continue;
             }
             for s in self.effective_slots(profile, &id).into_iter().flatten() {
-                if let Action::Submenu { menu } = &s.action {
+                if let Action::Submenu { menu, .. } = &s.action {
                     stack.push(menu.clone());
                 } else if let Some(score) = fuzzy(&s.name, query) {
                     hits.push((score, s));
@@ -797,10 +799,30 @@ mod tests {
         );
     }
     #[test]
+    fn submenu_click_mode_preserves_legacy_and_round_trips() {
+        let legacy = r#"{"kind":"submenu","menu":"child"}"#;
+        let action: Action = serde_json::from_str(legacy).unwrap();
+        assert!(matches!(
+            action,
+            Action::Submenu {
+                click_only: false,
+                ..
+            }
+        ));
+        let action = Action::Submenu {
+            menu: "child".into(),
+            click_only: true,
+        };
+        let encoded = serde_json::to_string(&action).unwrap();
+        let loaded: Action = serde_json::from_str(&encoded).unwrap();
+        assert!(matches!(loaded, Action::Submenu { menu, click_only: true } if menu == "child"));
+    }
+    #[test]
     fn rejects_cycles_and_invalid_audio() {
         let mut c = Config::default();
         c.menus[0].slots[0].as_mut().unwrap().action = Action::Submenu {
             menu: "global".into(),
+            click_only: false,
         };
         assert!(c.validate().is_err());
         c.menus[0].slots[0].as_mut().unwrap().action = Action::Volume {

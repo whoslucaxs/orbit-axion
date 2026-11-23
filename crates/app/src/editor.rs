@@ -120,6 +120,7 @@ fn load_slot(ui: &Editor, s: &mut State) {
     s.steps.clear();
     ui.set_elevated(false);
     ui.set_confirm(false);
+    ui.set_submenu_click_only(false);
     ui.set_icon_name("".into());
     ui.set_icon_is_file(false);
     ui.set_icon_loading(false);
@@ -220,8 +221,9 @@ fn load_slot(ui: &Editor, s: &mut State) {
                 ui.set_audio_target(*target as i32);
                 ui.set_audio_step(*step);
             }
-            Action::Submenu { menu } => {
+            Action::Submenu { menu, click_only } => {
                 ui.set_action_type(9);
+                ui.set_submenu_click_only(*click_only);
                 ui.set_submenu_index(
                     s.config
                         .menus
@@ -360,6 +362,7 @@ fn save_slot(ui: &Editor, s: &mut State) -> Result<(), String> {
             },
         },
         9 => Action::Submenu {
+            click_only: ui.get_submenu_click_only(),
             menu: s
                 .config
                 .menus
@@ -592,10 +595,9 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         let menu = &s.config.menus[s.menu].id;
         let used = s.config.profiles.iter().any(|p| &p.menu == menu)
             || s.config.menus.iter().any(|m| {
-                m.slots
-                    .iter()
-                    .flatten()
-                    .any(|slot| matches!(&slot.action,Action::Submenu{menu:target}if target==menu))
+                m.slots.iter().flatten().any(
+                    |slot| matches!(&slot.action,Action::Submenu{menu:target,..}if target==menu),
+                )
             });
         if used {
             u.set_status("Menu em uso por perfil ou submenu; remova a referência primeiro.".into());
@@ -706,7 +708,7 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
                 mapping.insert(mid.clone(), format!("{id}-{}", mapping.len()));
                 clones.push(menu.clone());
                 for slot in menu.slots.iter().flatten() {
-                    if let Action::Submenu { menu } = &slot.action {
+                    if let Action::Submenu { menu, .. } = &slot.action {
                         stack.push(menu.clone());
                     }
                 }
@@ -715,7 +717,7 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         for mut m in clones {
             m.id = mapping[&m.id].clone();
             for slot in m.slots.iter_mut().flatten() {
-                if let Action::Submenu { menu } = &mut slot.action {
+                if let Action::Submenu { menu, .. } = &mut slot.action {
                     *menu = mapping[menu].clone();
                 }
             }

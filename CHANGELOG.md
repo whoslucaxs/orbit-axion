@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.12 — submenu por clique — 2026-11-23
+
+- Cada ação de submenu pode exigir clique ou Enter para abrir, sem transição ao passar o cursor ou soltar o acionamento.
+- Opção no editor, salva por ação; configurações antigas mantêm o comportamento anterior.
+- Soltar um clique de navegação com o botão esquerdo não fecha o submenu que acabou de abrir.
+
 ## 0.2.11 — instalador padrão — 2026-11-23
 
 - Assistente padrão WiX substitui os diálogos MSI montados manualmente: boas-vindas, licença, escopo, pasta, confirmação, progresso e conclusão em português.

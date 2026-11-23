@@ -321,7 +321,10 @@ fn submenu_regression(ui: &Editor, ring: &Ring, state: &mut State) {
         name: "Child".into(),
         slots: Default::default(),
     });
-    state.config.menus[0].slots[0].as_mut().unwrap().action = Action::Submenu { menu: child };
+    state.config.menus[0].slots[0].as_mut().unwrap().action = Action::Submenu {
+        menu: child,
+        click_only: false,
+    };
     state.config.settings.hold = true;
     state.config.settings.keyboard_key = Some(0x7c);
     for offset in [0.0, -112.0] {
@@ -336,7 +339,7 @@ fn submenu_regression(ui: &Editor, ring: &Ring, state: &mut State) {
                 at,
             },
         );
-        choose(state, ui, ring, Some(0));
+        choose(state, ui, ring, Some(0), true);
         assert!(
             state.session.as_ref().unwrap().held,
             "submenu discarded held state"
@@ -397,7 +400,7 @@ fn submenu_regression(ui: &Editor, ring: &Ring, state: &mut State) {
             at: Instant::now(),
         },
     );
-    choose(state, ui, ring, Some(0));
+    choose(state, ui, ring, Some(0), true);
     process(
         state,
         ui,
@@ -412,7 +415,127 @@ fn submenu_regression(ui: &Editor, ring: &Ring, state: &mut State) {
         "click navigation should stay available"
     );
     process(state, ui, ring, Input::Escape);
-    println!("SUBMENU OK: hold release closes child/empty/back targets; click mode preserved");
+    state.config.menus[0].slots[0].as_mut().unwrap().action = Action::Submenu {
+        menu: "test-submenu".into(),
+        click_only: true,
+    };
+    state.config.settings.hold = true;
+    state.config.settings.keyboard_key = None;
+    state.config.settings.mouse_button = 3;
+    let at = Instant::now();
+    process(
+        state,
+        ui,
+        ring,
+        Input::Press {
+            point: center,
+            foreground: native::foreground(),
+            at,
+        },
+    );
+    choose(state, ui, ring, Some(0), false);
+    assert_eq!(
+        state.session.as_ref().unwrap().stack.len(),
+        1,
+        "hover opened click-only submenu"
+    );
+    let scale = state.session.as_ref().unwrap().scale;
+    let target = Point {
+        x: center.x,
+        y: center.y - (112.0 * scale) as i32,
+    };
+    process(
+        state,
+        ui,
+        ring,
+        Input::Release {
+            point: target,
+            at: at + Duration::from_millis(300),
+        },
+    );
+    assert_eq!(
+        state.session.as_ref().unwrap().stack.len(),
+        1,
+        "trigger release opened click-only submenu"
+    );
+    assert!(!ring.window().is_visible());
+
+    let at = Instant::now();
+    process(
+        state,
+        ui,
+        ring,
+        Input::Press {
+            point: center,
+            foreground: native::foreground(),
+            at,
+        },
+    );
+    process(
+        state,
+        ui,
+        ring,
+        Input::Release {
+            point: center,
+            at: at + Duration::from_millis(30),
+        },
+    );
+    process(
+        state,
+        ui,
+        ring,
+        Input::Press {
+            point: target,
+            foreground: native::foreground(),
+            at: at + Duration::from_millis(400),
+        },
+    );
+    assert_eq!(
+        state.session.as_ref().unwrap().stack.len(),
+        2,
+        "click did not open submenu"
+    );
+    process(
+        state,
+        ui,
+        ring,
+        Input::Release {
+            point: target,
+            at: at + Duration::from_millis(450),
+        },
+    );
+    assert!(
+        ring.window().is_visible(),
+        "click release closed the submenu"
+    );
+    process(state, ui, ring, Input::Escape);
+
+    process(
+        state,
+        ui,
+        ring,
+        Input::Press {
+            point: center,
+            foreground: native::foreground(),
+            at: Instant::now(),
+        },
+    );
+    state.session.as_mut().unwrap().selected = Some(0);
+    process(state, ui, ring, Input::Enter);
+    assert_eq!(
+        state.session.as_ref().unwrap().stack.len(),
+        2,
+        "Enter did not open submenu"
+    );
+    process(state, ui, ring, Input::Escape);
+
+    state.menu = 0;
+    state.slot = 0;
+    editor::refresh(ui, state);
+    assert!(ui.get_submenu_click_only());
+    println!(
+        "SUBMENU OK: hold release, click-only hover/release blocking, left-click navigation and Enter"
+    );
 }
 
 fn wait_icon_filter(
@@ -477,6 +600,39 @@ fn wait_icon_filter(
             .unwrap();
             let overlay = ring.upgrade().unwrap();
             submenu_regression(&editor, &overlay, &mut state.borrow_mut());
+            editor.set_submenu_click_only(false);
+            editor.invoke_save_slot();
+            editor.invoke_pick_slot(1);
+            editor.invoke_pick_slot(0);
+            assert!(!editor.get_submenu_click_only());
+            editor.set_submenu_click_only(true);
+            editor.invoke_save_slot();
+            editor.invoke_pick_slot(1);
+            editor.invoke_pick_slot(0);
+            assert!(editor.get_submenu_click_only());
+            let saved = state.borrow().config.clone();
+            let reloaded: Config =
+                serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
+            assert!(matches!(
+                reloaded.menus[0].slots[0].as_ref().unwrap().action,
+                Action::Submenu {
+                    click_only: true,
+                    ..
+                }
+            ));
+            println!("SUBMENU EDITOR OK: per-action option saved, reselected and serialized");
+            editor.set_page(0);
+            let snapshot = editor.window().take_snapshot().unwrap();
+            image::save_buffer(
+                std::env::current_dir()
+                    .unwrap()
+                    .join("target/submenu-click-test.png"),
+                snapshot.as_bytes(),
+                snapshot.width(),
+                snapshot.height(),
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
             println!(
                 "ICON FILTERS OK: automatic executable icon, grayscale, live filters, source preservation and per-slot persistence"
             );
