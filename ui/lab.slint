@@ -76,6 +76,9 @@ component ColorControl inherits Rectangle {
 }
 component Caption inherits Text { color: Ink.muted; font-size: 11px; }
 component Heading inherits Text { color: Ink.text; font-size: 21px; font-weight: 600; }
+export global AppBrand {
+    out property <image> icon: @image-url("../assets/branding/orbit-axion.png");
+}
 export global BrandIcons {
     public pure function image-for-id(id: string) -> image {
         if id == "brand:voicemeeter" { return @image-url("../assets/icons/custom/voicemeeter.svg"); }
@@ -137,6 +140,7 @@ component Face inherits Rectangle {
 export component Ring inherits Window {
     in property<float> zoom: 1;
     in property <[RingItem]> items;
+    icon: AppBrand.icon;
     title: "Orbit Axion · Ring"; width: 360px * root.zoom; height: 360px * root.zoom; no-frame: true; background: transparent;
     in property <int> selected: -1;
     in property <string> level;
@@ -150,8 +154,7 @@ export component Ring inherits Window {
 export component Tray inherits SystemTrayIcon {
     in property <bool> en: false;
     in property <bool> paused: false;
-    in property <image> tray-image;
-    icon: tray-image; tooltip: "Orbit Axion";
+    icon: AppBrand.icon; tooltip: "Orbit Axion";
     callback open-editor;
     callback toggle;
     callback quit;
@@ -167,6 +170,7 @@ export component Editor inherits Window {
     in property<string> notice;
     init => { Palette.color-scheme = ColorScheme.dark; }
     in property <[RingItem]> items;
+    icon: AppBrand.icon;
     title: "Orbit Axion"; preferred-width: 1160px; preferred-height: 800px; min-width: 1080px; min-height: 760px;
     background: Ink.panel-background.with-alpha(root.glass-strength / 100);
     in property <[string]> profiles;
@@ -346,7 +350,7 @@ export component Editor inherits Window {
         Rectangle { width: 204px; background: Ink.surface.with-alpha(Ink.liquid-glass ? 0.3 : 0.55);
             Rectangle { x: parent.width - 1px; width: 1px; background: Ink.edge; }
             VerticalLayout { padding: 22px; spacing: 10px;
-                Text { text: "◎"; color: Ink.accent; font-size: 40px; height: 58px; }
+                Image { source: AppBrand.icon; image-fit: contain; width: 58px; height: 58px; }
                 Text { text: "Orbit Axion"; color: Ink.text; font-size: 22px; font-weight: 600; }
                 Caption { text: "YOUR FLOW, IN ORBIT"; height: 32px; font-size: 9px; }
                 for name[i] in [root.en ? "Menus & actions" : "Menus e ações", root.en ? "Profiles" : "Perfis", root.en ? "App preferences" : "Preferências do app"]: Pill { text: name; accent: root.page == i; clicked => { root.page = i; } }

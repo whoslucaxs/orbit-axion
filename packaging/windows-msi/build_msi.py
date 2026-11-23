@@ -25,7 +25,8 @@ def build(exe, output, version):
                     db.OpenView("UPDATE `%s` SET Condition=%s, Sequence=%s WHERE Action='%s'"%(table,condition,row[2],row[0])).Execute(None)
                     continue
             msilib.add_data(db, table, [row])
-    data('Property', [('UpgradeCode',UPGRADE),('ALLUSERS','2'),('MSIINSTALLPERUSER','1'),('INSTALLLEVEL','1'),('ARPNOMODIFY','1'),('SecureCustomProperties','ALLUSERS;MSIINSTALLPERUSER;OLDPRODUCTS;NEWERPRODUCTS'),('DefaultUIFont','OrbitFont')])
+    data('Icon', [('OrbitAppIcon', msilib.Binary(str(pathlib.Path(__file__).resolve().parents[2]/'assets/branding/orbit-axion.ico')))])
+    data('Property', [('ARPPRODUCTICON','OrbitAppIcon'),('UpgradeCode',UPGRADE),('ALLUSERS','2'),('MSIINSTALLPERUSER','1'),('INSTALLLEVEL','1'),('ARPNOMODIFY','1'),('SecureCustomProperties','ALLUSERS;MSIINSTALLPERUSER;OLDPRODUCTS;NEWERPRODUCTS'),('DefaultUIFont','OrbitFont')])
     data('TextStyle',[('OrbitFont','Segoe UI',10,None,0),('OrbitTitle','Segoe UI',18,0x00ACAC,1)])
     data('LaunchCondition',[('VersionNT64','Orbit Axion requires Windows x64.'),('NOT NEWERPRODUCTS','A newer Orbit Axion version is installed.')])
     data('AppSearch',[('WINDOWSBUILD','WindowsBuild')])
@@ -52,7 +53,7 @@ def build(exe, output, version):
     menu.start_component('OrbitShortcut',feature,256,uuid=guid('shortcut'))
     data('Registry',[('OrbitInstall',-1,r'Software\OrbitAxion','InstallPath','[INSTALLDIR]','OrbitShortcut')])
     db.OpenView("UPDATE Component SET KeyPath='OrbitInstall', Attributes=260 WHERE Component='OrbitShortcut'").Execute(None)
-    data('Shortcut',[('OrbitStart','ProgramMenuFolder','Orbit|Orbit Axion','OrbitShortcut','[#%s]'%fileid,'--watchdog','Open Orbit Axion',None,None,None,1,'INSTALLDIR')])
+    data('Shortcut',[('OrbitStart','ProgramMenuFolder','Orbit|Orbit Axion','OrbitShortcut','[#%s]'%fileid,'--watchdog','Open Orbit Axion',None,'OrbitAppIcon',0,1,'INSTALLDIR')])
     welcome=msilib.Dialog(db,'OrbitWelcome',50,50,370,245,3,'Orbit Axion','Install','Install','Cancel')
     welcome.control('Title','Text',20,18,330,35,3,None,'{\\OrbitTitle}Orbit Axion',None,None)
     welcome.control('Text','Text',20,60,325,45,3,None,'Radial actions for Windows. GNU GPL v3. Choose scope:',None,None)

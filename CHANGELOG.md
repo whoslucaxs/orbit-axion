@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.9 — identidade do aplicativo — 2026-11-23
+
+- Imagem enviada pelo usuário aplicada ao executável Windows, janelas, bandeja e marca do editor.
+- ICO com nove resoluções; ícone do atalho e da lista de aplicativos instalados incluído no MSI.
+
 ## 0.2.8 — ícone automático do programa — 2026-11-23
 
 - Selecionar ou colar o caminho de um EXE/LNK na ação aplica automaticamente seu ícone ao botão, mantendo os filtros ajustáveis.

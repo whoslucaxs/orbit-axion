@@ -988,20 +988,6 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
     }
     state.last_foreground = foreground;
 }
-fn tray_image() -> slint::Image {
-    let mut pixels = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::new(32, 32);
-    for (y, row) in pixels.make_mut_slice().chunks_mut(32).enumerate() {
-        for (x, p) in row.iter_mut().enumerate() {
-            let d = (x as f32 - 15.5).hypot(y as f32 - 15.5);
-            *p = if (9.0..=14.0).contains(&d) {
-                slint::Rgba8Pixel::new(0, 172, 172, 255)
-            } else {
-                slint::Rgba8Pixel::new(0, 0, 0, 0)
-            };
-        }
-    }
-    slint::Image::from_rgba8(pixels)
-}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
     if args.iter().any(|a| a == "--uninstall-settings") {
@@ -1061,7 +1047,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     creating_overlay.set(false);
     let ring = ring?;
     let tray = Tray::new()?;
-    tray.set_tray_image(tray_image());
     if smoke_enabled || ui_test {
         tray.hide()?;
     }
@@ -1091,6 +1076,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     storage::materialize_menu_style(&mut config);
     if ui_test {
+        assert_eq!(ui.global::<AppBrand>().get_icon().size().width, 256);
         config.settings.mouse_button = 2;
         config.settings.keyboard_key = Some(0x7c);
         config.settings.sound_volume = 17;

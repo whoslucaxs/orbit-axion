@@ -4,7 +4,9 @@ Menu radial para Windows 11 x64 em Rust + Slint, independente de periféricos Lo
 
 O binário MSVC requer o Microsoft Visual C++ Runtime x64 (VCRUNTIME140.dll); o MSI atual não instala esse pré-requisito.
 
-## Versão 0.2.8
+## Versão 0.2.9
+
+Ícone orbital fornecido pelo usuário incorporado ao executável, janelas, bandeja, marca do editor e atalho instalado. A imagem original está preservada em `assets/branding/`.
 
 Editor de oito posições, submenus, perfis por caminho de executável com prioridade e herança do Global, modo manual, busca fuzzy, macros canceláveis, atalhos, texto Unicode, abertura de programas/scripts, mídia e comandos de janela/sistema. O anel abre por Meio, Mouse 4, Mouse 5, Esquerdo, Direito ou uma tecla do teclado; funciona por clique ou segurar/soltar, sem tomar o foco. Fechar o editor mantém o app na bandeja; use Sair na bandeja para encerrar.
 
@@ -57,7 +59,7 @@ cargo run --locked -p orbit-axion --bin orbit-axion -- --ui-test
 
 ```powershell
 python packaging/windows-msi/collect_notices.py
-python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.8-x64.msi 0.2.8
+python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.9-x64.msi 0.2.9
 ```
 
 Empacotamento nativo MSI requer Python 3.9–3.12 no Windows (`msilib`). Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build extrai o CAB e compara os hashes dos arquivos incorporados; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.

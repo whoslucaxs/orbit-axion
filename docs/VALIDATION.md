@@ -1,3 +1,13 @@
+# Verificações locais — 0.2.9 — 2026-11-23
+
+- PNG original preservado byte a byte, com transparência. ICO contém 16, 20, 24, 32, 40, 48, 64, 128 e 256 pixels.
+- Recursos PE do executável lidos via APIs Windows: grupo de ícones e os nove recursos de imagem presentes, com tamanhos corretos.
+- UI test verificou a imagem incorporada de 256px; captura do editor com a nova marca inspecionada.
+- Regressões de ícones, filtros, submenu e acionamento passaram; Clippy e formatador sem avisos.
+- MSI inclui ícone da entrada de aplicativos instalados e do atalho. Instalação/upgrade/rollback em VM continuam pendentes.
+
+---
+
 # Verificações locais — 0.2.8 — 2026-11-23
 
 - 26 testes unitários passaram; Clippy e formatador sem avisos.

@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-audio"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "libloading 0.9.1",
  "windows",
@@ -3154,7 +3154,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-axion"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "base64",
  "i-slint-backend-selector",
@@ -3172,11 +3172,12 @@ dependencies = [
  "slint-build",
  "ureq",
  "windows",
+ "winresource",
 ]
 
 [[package]]
 name = "orbit-core"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "serde",
  "serde_json",
@@ -3184,7 +3185,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-windows"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "orbit-core",
  "unicode-normalization",
@@ -5616,6 +5617,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "winresource"
+version = "0.1.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2bc6d36480b829272a5bdabf08e6dca8004761c1da7e35efef800540c66221b"
+dependencies = [
+ "version_check",
 ]
 
 [[package]]
