@@ -70,6 +70,7 @@ struct State {
     updater: updater::Updater,
     latest: Option<updater::Asset>,
     endpoints: Vec<(String, String)>,
+    keyboard_codes: Vec<u32>,
     feedback: feedback::Feedback,
     writer: storage::Writer,
     icons: icons::Icons,
@@ -85,17 +86,81 @@ fn color(value: &str) -> slint::Color {
         .map(|v| slint::Color::from_rgb_u8((v >> 16) as u8, (v >> 8) as u8, v as u8))
         .unwrap_or_default()
 }
+fn menu_color(value: &str) -> slint::Color {
+    if value.len() == 9 {
+        let rgba = u32::from_str_radix(&value[1..], 16).unwrap_or_default();
+        slint::Color::from_argb_u8(
+            rgba as u8,
+            (rgba >> 24) as u8,
+            (rgba >> 16) as u8,
+            (rgba >> 8) as u8,
+        )
+    } else {
+        color(value)
+    }
+}
+fn menu_style_from_ui(ui: &Editor) -> MenuStyle {
+    MenuStyle {
+        background: ui.get_menu_background_hex().trim().to_string(),
+        surface: ui.get_menu_surface_hex().trim().to_string(),
+        icons: ui.get_menu_icons_hex().trim().to_string(),
+        text: ui.get_menu_text_hex().trim().to_string(),
+        muted: ui.get_menu_muted_hex().trim().to_string(),
+        border: ui.get_menu_border_hex().trim().to_string(),
+        title: ui.get_menu_title_hex().trim().to_string(),
+        selection_background: ui.get_menu_selection_background_hex().trim().to_string(),
+        selection_icon: ui.get_menu_selection_icon_hex().trim().to_string(),
+        selection_border: ui.get_menu_selection_border_hex().trim().to_string(),
+        shadow: ui.get_menu_shadow_hex().trim().to_string(),
+        opacity: ui.get_menu_opacity() / 100.0,
+    }
+}
 fn preview_background(ui: &Editor, ring: &Ring) {
     let value = ui.get_background_hex().trim().to_string();
     if value.is_empty() || valid_color(&value) {
-        for ink in [ui.global::<Ink>(), ring.global::<Ink>()] {
-            ink.set_custom_background(!value.is_empty());
-            if !value.is_empty() {
-                ink.set_background_color(color(&value));
-            }
+        let ink = ui.global::<Ink>();
+        ink.set_custom_background(!value.is_empty());
+        if !value.is_empty() {
+            ink.set_background_color(color(&value));
         }
     }
-    ring.set_glass_opacity(ui.get_glass_strength() / 100.0);
+    let style = menu_style_from_ui(ui);
+    for ink in [ui.global::<MenuInk>(), ring.global::<MenuInk>()] {
+        if valid_menu_color(&style.background) {
+            ink.set_background(menu_color(&style.background));
+        }
+        if valid_menu_color(&style.surface) {
+            ink.set_surface(menu_color(&style.surface));
+        }
+        if valid_menu_color(&style.icons) {
+            ink.set_icons(menu_color(&style.icons));
+        }
+        if valid_menu_color(&style.text) {
+            ink.set_text(menu_color(&style.text));
+        }
+        if valid_menu_color(&style.muted) {
+            ink.set_muted(menu_color(&style.muted));
+        }
+        if valid_menu_color(&style.border) {
+            ink.set_border(menu_color(&style.border));
+        }
+        if valid_menu_color(&style.title) {
+            ink.set_title(menu_color(&style.title));
+        }
+        if valid_menu_color(&style.selection_background) {
+            ink.set_selection_background(menu_color(&style.selection_background));
+        }
+        if valid_menu_color(&style.selection_icon) {
+            ink.set_selection_icon(menu_color(&style.selection_icon));
+        }
+        if valid_menu_color(&style.selection_border) {
+            ink.set_selection_border(menu_color(&style.selection_border));
+        }
+        if valid_menu_color(&style.shadow) {
+            ink.set_shadow(menu_color(&style.shadow));
+        }
+        ink.set_opacity(style.opacity);
+    }
 }
 fn glyph(name: &str) -> &'static str {
     match name {
@@ -370,6 +435,24 @@ fn process(state: &mut State, ui: &Editor, ring: &Ring, event: Input) {
                 state.config.settings.keyboard_key = Some(key);
                 ui.set_trigger_source(1);
                 ui.set_keyboard_key(key as i32);
+                if !state.keyboard_codes.contains(&key) {
+                    state.keyboard_codes.push(key);
+                    ui.set_keyboard_options(ModelRc::new(VecModel::from(
+                        state
+                            .keyboard_codes
+                            .iter()
+                            .map(|&key| format!("{} · 0x{key:02X}", services::key_name(key)).into())
+                            .collect::<Vec<_>>(),
+                    )));
+                }
+                ui.set_keyboard_index(
+                    state
+                        .keyboard_codes
+                        .iter()
+                        .position(|&value| value == key)
+                        .unwrap_or(0) as i32,
+                );
+
                 let name = services::key_name(key);
                 ui.set_keyboard_name(name.clone().into());
                 name
@@ -601,7 +684,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
             storage::Reply::Imported(result) => match result {
                 Ok(config) => {
                     close(state, ring);
-                    state.config = config;
+                    state.config = *config;
                     state.automatic = state.config.settings.automatic_profiles;
                     state.profile = state
                         .config
@@ -804,9 +887,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
         preview_background(ui, ring);
         let accent = color(&state.config.settings.accent);
         ui.global::<Ink>().set_accent(accent);
-        ring.global::<Ink>().set_accent(accent);
         let _ = i_slint_backend_selector::with_global_context(|ctx| ctx.set_accent_color(accent));
-        ring.global::<Ink>().set_light(light);
         ui.set_diagnostic(format!("Orbit Axion {}\nRAM: {} MB · CPU: {:.2}% · Abertura: {:.2} ms\nConfiguração: {}\nCaptura: {} · Sessão: {} s\nSem telemetria e sem histórico de ações.",env!("CARGO_PKG_VERSION"),services::memory_mb(),cpu,state.latency_ms,state.store.directory.display(),if state.paused||state.safe{"pausada"}else{"ativa"},state.opened.elapsed().as_secs()).into());
     }
     state.last_foreground = foreground;
@@ -912,6 +993,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e.into());
         }
     };
+    storage::materialize_menu_style(&mut config);
     if ui_test {
         config.settings.mouse_button = 2;
         config.settings.keyboard_key = Some(0x7c);
@@ -920,6 +1002,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.settings.startup = true;
         config.settings.background_color = "#464545".into();
         config.settings.opacity = 0.37;
+        config.settings.menu_style = Some(MenuStyle {
+            background: "#5c2040".into(),
+            opacity: 0.8,
+            ..MenuStyle::default()
+        });
     }
     let automatic = config.settings.automatic_profiles;
     let selected_profile = config
@@ -941,6 +1028,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         updater: updater::Updater::start(wake.clone()),
         latest: None,
         endpoints: vec![],
+        keyboard_codes: vec![],
         feedback: feedback::Feedback::new(config.settings.sound_volume),
         writer: storage::Writer::start(store.clone(), wake.clone()),
         icons: icons::Icons::new(wake.clone()),
@@ -1034,6 +1122,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     assert_eq!(ui.get_trigger_source(), 1);
                     assert_eq!(ui.get_keyboard_key(), 0x7c);
                     assert_eq!(ui.get_keyboard_name(), "F13");
+                    assert!(ui.get_keyboard_index() > 0);
+                    let f8 = services::keyboard_choices()
+                        .iter()
+                        .position(|&key| key == 0x77)
+                        .unwrap() as i32;
+                    ui.invoke_select_keyboard_key(f8);
+                    assert_eq!(ui.get_keyboard_key(), 0x77);
+                    assert_eq!(ui.get_keyboard_name(), "F8");
+                    let f13 = services::keyboard_choices()
+                        .iter()
+                        .position(|&key| key == 0x7c)
+                        .unwrap() as i32;
+                    ui.invoke_select_keyboard_key(f13);
+                    assert_eq!(ui.get_keyboard_key(), 0x7c);
+
                     assert_eq!(ui.get_menu_size(), 420);
                     assert_eq!(ui.get_sound_volume(), 17.0);
                     assert!(ui.get_startup());
@@ -1041,6 +1144,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     assert!((ui.get_glass_strength() - 37.0).abs() < 0.01);
                     assert!(ui.global::<Ink>().get_custom_background());
                     assert_eq!(ui.global::<Ink>().get_background_color(), color("#464545"));
+                    assert_eq!(ui.get_menu_background_hex(), "#5c2040");
+                    assert_eq!(ui.get_menu_opacity(), 80.0);
+                    #[cfg(debug_assertions)]
+                    {
+                        let mut expected =
+                            serde_json::to_value(&test_state.borrow().config.settings).unwrap();
+                        ui.set_menu_text_hex("#DDEEFF".into());
+                        ui.invoke_save_menu_style();
+                        let mut actual =
+                            serde_json::to_value(&test_state.borrow().config.settings).unwrap();
+                        actual.as_object_mut().unwrap().remove("menu_style");
+                        expected.as_object_mut().unwrap().remove("menu_style");
+                        assert_eq!(
+                            actual, expected,
+                            "saving menu colors changed app preferences"
+                        );
+                    }
+
+                    assert_eq!(
+                        ui.global::<MenuInk>().get_background(),
+                        menu_color("#5c2040")
+                    );
                     println!("UI TEST OK: hidden-page settings preserve their loaded values");
                     #[cfg(debug_assertions)]
                     if let Some(ring) = test_ring.upgrade() {
@@ -1100,4 +1225,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| Err("Teste interrompido".into()))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod appearance_tests {
+    use super::*;
+    #[test]
+    fn parses_menu_rgb_and_rgba_without_reinterpreting_alpha() {
+        assert_eq!(
+            menu_color("#11223380"),
+            slint::Color::from_argb_u8(128, 17, 34, 51)
+        );
+        assert_eq!(menu_color("#112233"), slint::Color::from_rgb_u8(17, 34, 51));
+    }
 }

@@ -1,6 +1,73 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MenuStyle {
+    pub background: String,
+    pub surface: String,
+    pub icons: String,
+    pub text: String,
+    pub muted: String,
+    pub border: String,
+    pub title: String,
+    pub selection_background: String,
+    pub selection_icon: String,
+    pub selection_border: String,
+    pub shadow: String,
+    pub opacity: f32,
+}
+impl Default for MenuStyle {
+    fn default() -> Self {
+        Self {
+            background: "#111212".into(),
+            surface: "#232525D9".into(),
+            icons: "#DFDEDC".into(),
+            text: "#DFDEDC".into(),
+            muted: "#A6A7A2".into(),
+            border: "#DFDEDC28".into(),
+            title: "#00ACAC".into(),
+            selection_background: "#00ACAC33".into(),
+            selection_icon: "#00ACAC".into(),
+            selection_border: "#00ACAC".into(),
+            shadow: "#00000030".into(),
+            opacity: 0.92,
+        }
+    }
+}
+impl MenuStyle {
+    pub fn validate(&self) -> Result<(), String> {
+        if [
+            &self.background,
+            &self.surface,
+            &self.icons,
+            &self.text,
+            &self.muted,
+            &self.border,
+            &self.title,
+            &self.selection_background,
+            &self.selection_icon,
+            &self.selection_border,
+            &self.shadow,
+        ]
+        .into_iter()
+        .any(|v| !valid_menu_color(v))
+            || !self.opacity.is_finite()
+            || !(0.0..=1.0).contains(&self.opacity)
+        {
+            return Err(
+                "Paleta do menu inválida: use #RRGGBB ou #RRGGBBAA e opacidade de 0 a 100%".into(),
+            );
+        }
+        Ok(())
+    }
+}
+pub fn valid_menu_color(value: &str) -> bool {
+    matches!(value.len(), 7 | 9)
+        && value.starts_with('#')
+        && value[1..].chars().all(|c| c.is_ascii_hexdigit())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -12,6 +79,7 @@ pub struct Settings {
     pub size: f32,
     pub opacity: f32,
     pub background_color: String,
+    pub menu_style: Option<MenuStyle>,
     pub theme: String,
     pub language: String,
     pub startup: bool,
@@ -34,6 +102,7 @@ impl Default for Settings {
             size: 360.0,
             opacity: 0.92,
             background_color: String::new(),
+            menu_style: None,
             theme: "system".into(),
             language: "pt-BR".into(),
             startup: false,
@@ -53,6 +122,29 @@ pub fn valid_keyboard_key(key: u32) -> bool {
     (0x08..=0xfe).contains(&key) && key != 0xe7
 }
 impl Settings {
+    pub fn resolved_menu_style(&self, light: bool) -> MenuStyle {
+        if let Some(style) = &self.menu_style {
+            return style.clone();
+        }
+        MenuStyle {
+            background: if self.background_color.is_empty() {
+                if light { "#DFDEDC" } else { "#111212" }.into()
+            } else {
+                self.background_color.clone()
+            },
+            surface: if light { "#f7f7f4D9" } else { "#232525D9" }.into(),
+            icons: if light { "#151515" } else { "#DFDEDC" }.into(),
+            text: if light { "#151515" } else { "#DFDEDC" }.into(),
+            muted: if light { "#646560" } else { "#A6A7A2" }.into(),
+            border: if light { "#FFFFFFB0" } else { "#DFDEDC28" }.into(),
+            title: self.accent.clone(),
+            selection_background: format!("{}33", self.accent),
+            selection_icon: self.accent.clone(),
+            selection_border: self.accent.clone(),
+            shadow: "#00000030".into(),
+            opacity: self.opacity,
+        }
+    }
     pub fn activation_code(&self) -> u32 {
         self.keyboard_key
             .map_or(self.mouse_button, |key| KEYBOARD_TRIGGER_BASE + key)
@@ -314,6 +406,9 @@ impl Config {
             ));
         }
         let s = &self.settings;
+        if let Some(style) = &s.menu_style {
+            style.validate()?;
+        }
         if !valid_color(&s.accent) {
             return Err("Cor de destaque inválida: use #RRGGBB".into());
         }
@@ -518,6 +613,29 @@ mod tests {
         let loaded: Config = serde_json::from_value(legacy).unwrap();
         assert!(loaded.settings.background_color.is_empty());
         loaded.validate().unwrap();
+    }
+    #[test]
+    fn frozen_menu_palette_is_independent_from_app_theme_and_colors() {
+        let mut settings = Settings {
+            background_color: "#464545".into(),
+            accent: "#123456".into(),
+            opacity: 0.37,
+            ..Settings::default()
+        };
+        let migrated = settings.resolved_menu_style(false);
+        assert_eq!(migrated.background, "#464545");
+        assert_eq!(migrated.selection_icon, "#123456");
+        settings.menu_style = Some(migrated.clone());
+        settings.background_color = "#FFFFFF".into();
+        settings.accent = "#FF0000".into();
+        settings.opacity = 1.0;
+        settings.theme = "light".into();
+        assert_eq!(settings.resolved_menu_style(true), migrated);
+        let mut menu = migrated;
+        menu.selection_background = "#12345678".into();
+        menu.validate().unwrap();
+        menu.border = "invalid".into();
+        assert!(menu.validate().is_err());
     }
     #[test]
     fn keyboard_trigger_roundtrips_and_old_mouse_configs_still_load() {

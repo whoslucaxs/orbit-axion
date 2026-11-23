@@ -28,19 +28,48 @@ pub fn refresh(ui: &Editor, s: &mut State) {
     let settings = &s.config.settings;
     ui.set_mouse_button(settings.mouse_button as i32);
     ui.set_trigger_source(i32::from(settings.keyboard_key.is_some()));
-    ui.set_keyboard_key(settings.keyboard_key.unwrap_or_default() as i32);
-    ui.set_keyboard_name(
-        settings
-            .keyboard_key
-            .map(services::key_name)
-            .unwrap_or_default()
-            .into(),
+    let key = settings.keyboard_key.unwrap_or(0x7c);
+    s.keyboard_codes = services::keyboard_choices();
+    if !s.keyboard_codes.contains(&key) {
+        s.keyboard_codes.push(key);
+    }
+    ui.set_keyboard_options(ModelRc::new(VecModel::from(
+        s.keyboard_codes
+            .iter()
+            .map(|&key| format!("{} · 0x{key:02X}", services::key_name(key)).into())
+            .collect::<Vec<_>>(),
+    )));
+    ui.set_keyboard_index(
+        s.keyboard_codes
+            .iter()
+            .position(|&value| value == key)
+            .unwrap_or(0) as i32,
     );
+    ui.set_keyboard_key(key as i32);
+    ui.set_keyboard_name(services::key_name(key).into());
     ui.set_hold(settings.hold);
     ui.set_hold_ms(settings.hold_ms as i32);
     ui.set_distance(settings.distance as f32);
     ui.set_glass_strength(settings.opacity * 100.0);
     ui.set_background_hex(settings.background_color.clone().into());
+    let light = match settings.theme.as_str() {
+        "light" => true,
+        "dark" => false,
+        _ => services::light_theme(),
+    };
+    let menu_style = settings.resolved_menu_style(light);
+    ui.set_menu_background_hex(menu_style.background.into());
+    ui.set_menu_surface_hex(menu_style.surface.into());
+    ui.set_menu_icons_hex(menu_style.icons.into());
+    ui.set_menu_text_hex(menu_style.text.into());
+    ui.set_menu_muted_hex(menu_style.muted.into());
+    ui.set_menu_border_hex(menu_style.border.into());
+    ui.set_menu_title_hex(menu_style.title.into());
+    ui.set_menu_selection_background_hex(menu_style.selection_background.into());
+    ui.set_menu_selection_icon_hex(menu_style.selection_icon.into());
+    ui.set_menu_selection_border_hex(menu_style.selection_border.into());
+    ui.set_menu_shadow_hex(menu_style.shadow.into());
+    ui.set_menu_opacity(menu_style.opacity * 100.0);
     ui.set_theme(match settings.theme.as_str() {
         "dark" => 1,
         "light" => 2,
@@ -648,6 +677,18 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
     bind!(on_preview_background, |u, _s, r| {
         preview_background(&u, &r);
     });
+    bind!(on_save_menu_style, |u, s, r| {
+        let style = menu_style_from_ui(&u);
+        if let Err(error) = style.validate() {
+            u.set_status(error.into());
+            return;
+        }
+        s.config.settings.menu_style = Some(style);
+        if persist(&u, s) {
+            preview_background(&u, &r);
+            u.set_status("Aparência do menu salva separadamente do aplicativo".into());
+        }
+    });
     bind!(on_save_settings, |u, s, r| {
         let old = s.config.settings.clone();
         {
@@ -685,13 +726,31 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
             s.config.settings = old;
             u.set_status(e.into());
         } else if persist(&u, s) {
-            r.set_glass_opacity(s.config.settings.opacity);
+            preview_background(&u, &r);
             r.set_zoom(s.config.settings.size / 360.0);
             s.feedback = feedback::Feedback::new(s.config.settings.sound_volume);
             arm(s, &u, &r);
             u.set_status("Preferências salvas".into());
         }
     });
+    {
+        let state = state.clone();
+        let weak = ui.as_weak();
+        ui.on_select_keyboard_key(move |index| {
+            if let Some(u) = weak.upgrade()
+                && let Ok(s) = state.try_borrow()
+                && let Some(&key) = s.keyboard_codes.get(index as usize)
+            {
+                u.set_keyboard_key(key as i32);
+                u.set_keyboard_index(index);
+                u.set_keyboard_name(services::key_name(key).into());
+                u.set_trigger_source(1);
+                u.set_status(
+                    "Tecla selecionada. Clique em Aplicar preferências para salvar.".into(),
+                );
+            }
+        });
+    }
     bind!(on_learn_button, |u, s, r| {
         if s.safe {
             u.set_status("Captura de botão indisponível no modo seguro".into());

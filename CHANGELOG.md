@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4 — paleta independente e seleção de teclas — 2026-11-22
+
+- Paleta própria do menu para fundo, botões, ícones, textos, bordas, seleção e sombra; opacidade independente.
+- Página Cores do menu com prévia e salvamento separado das preferências do aplicativo.
+- Migração única preserva as cores antigas; alterações posteriores no app não afetam o menu.
+- Lista de teclas no editor com seleção inicial F13, sem depender da captura global.
+- Testes comparam o render do menu antes/depois de mudar a paleta do app e verificam seleção F8/F13 pela interface.
+
 ## 0.2.3 — acionamento pelo teclado — 2026-11-22
 
 - Captura de teclas do teclado, incluindo letras, funções F1–F24 e modificadores, além dos botões do mouse.

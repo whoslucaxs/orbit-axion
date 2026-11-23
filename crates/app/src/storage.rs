@@ -10,6 +10,19 @@ use windows::{
     core::PCWSTR,
 };
 
+pub(crate) fn materialize_menu_style(config: &mut Config) -> bool {
+    if config.settings.menu_style.is_some() {
+        return false;
+    }
+    let light = match config.settings.theme.as_str() {
+        "light" => true,
+        "dark" => false,
+        _ => orbit_windows::services::light_theme(),
+    };
+    config.settings.menu_style = Some(config.settings.resolved_menu_style(light));
+    true
+}
+
 #[derive(Clone)]
 pub struct Store {
     pub directory: PathBuf,
@@ -26,7 +39,7 @@ pub enum Job {
 }
 pub enum Reply {
     Saved(Result<(), String>),
-    Imported(Result<Config, String>),
+    Imported(Result<Box<Config>, String>),
     Exported(Result<(), String>),
     Icon(Result<String, String>, String, usize),
     Logs(String),
@@ -45,9 +58,10 @@ impl Writer {
                 let response = match job {
                     Job::Save(c) => Reply::Saved(store.save(&c)),
                     Job::Import(path, base) => {
-                        Reply::Imported(store.import_bundle(&path, base).and_then(|c| {
+                        Reply::Imported(store.import_bundle(&path, base).and_then(|mut c| {
+                            materialize_menu_style(&mut c);
                             store.save(&c)?;
-                            Ok(c)
+                            Ok(Box::new(c))
                         }))
                     }
                     Job::Export(c, path, profile) => {
@@ -126,14 +140,21 @@ impl Store {
         if !path.exists() {
             let mut c = Config::default();
             c.settings.language = orbit_windows::services::language();
+            materialize_menu_style(&mut c);
             self.save(&c)?;
             return Ok((c, None));
         }
         match Self::read(&path) {
-            Ok(c) => Ok((c, None)),
+            Ok(mut c) => {
+                if materialize_menu_style(&mut c) {
+                    self.save(&c)?;
+                }
+                Ok((c, None))
+            }
             Err(original) => {
                 for backup in self.backups()? {
-                    if let Ok(c) = Self::read(&backup) {
+                    if let Ok(mut c) = Self::read(&backup) {
+                        materialize_menu_style(&mut c);
                         let quarantine = self
                             .directory
                             .join(format!("config.corrupt-{}.json", timestamp()));
@@ -481,6 +502,36 @@ fn merge_profile(mut base: Config, incoming: &Config, id: &str) -> Result<Config
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn migrates_shared_colors_once_and_keeps_menu_independent_after_restart() {
+        let dir = std::env::temp_dir().join(format!("orbit-style-{}", timestamp()));
+        let store = Store::at(dir.clone()).unwrap();
+        let mut old = Config::default();
+        old.settings.background_color = "#464545".into();
+        old.settings.accent = "#123456".into();
+        old.settings.opacity = 0.37;
+        let mut json = serde_json::to_value(&old).unwrap();
+        json["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("menu_style");
+        fs::write(dir.join("config.json"), serde_json::to_vec(&json).unwrap()).unwrap();
+        let (mut migrated, _) = store.load().unwrap();
+        let menu = migrated.settings.menu_style.clone().unwrap();
+        assert_eq!(menu.background, "#464545");
+        assert_eq!(menu.selection_icon, "#123456");
+        assert_eq!(menu.opacity, 0.37);
+        migrated.settings.background_color = "#FFFFFF".into();
+        migrated.settings.theme = "light".into();
+        migrated.settings.accent = "#FF0000".into();
+        migrated.settings.opacity = 1.0;
+        store.save(&migrated).unwrap();
+        let loaded = store.load().unwrap().0;
+        assert_eq!(loaded.settings.menu_style, Some(menu));
+        assert!(!store.backups().unwrap().is_empty());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn bundles_embed_icons_and_merge_profiles_without_replacing_global() {
         let dir = std::env::temp_dir().join(format!("orbit-bundle-{}", timestamp()));

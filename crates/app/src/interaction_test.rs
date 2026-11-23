@@ -103,6 +103,29 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
             assert!(overlay.window().is_visible());
             assert_eq!(native::foreground(), origin, "ring stole focus");
             if case == 0 {
+                let before = overlay.window().take_snapshot().unwrap();
+                let app_background = editor.get_background_hex();
+                let app_opacity = editor.get_glass_strength();
+                let app_light = editor.global::<Ink>().get_light();
+                let app_accent = editor.global::<Ink>().get_accent();
+                editor.set_background_hex("#3399FF".into());
+                editor.set_glass_strength(15.0);
+                editor
+                    .global::<Ink>()
+                    .set_light(!editor.global::<Ink>().get_light());
+                editor.global::<Ink>().set_accent(color("#FF3300"));
+                preview_background(&editor, &overlay);
+                let after = overlay.window().take_snapshot().unwrap();
+                assert_eq!(
+                    before.as_bytes(),
+                    after.as_bytes(),
+                    "app colors or theme changed the radial menu"
+                );
+                editor.set_background_hex(app_background);
+                editor.set_glass_strength(app_opacity);
+                editor.global::<Ink>().set_light(app_light);
+                editor.global::<Ink>().set_accent(app_accent);
+                preview_background(&editor, &overlay);
                 for (window, filename) in [
                     (editor.window(), "appearance-test.png"),
                     (overlay.window(), "ring-test.png"),
@@ -151,6 +174,21 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                     )
                     .unwrap();
                 }
+            }
+            if case == 0 {
+                editor.set_page(4);
+                let pixels = editor.window().take_snapshot().unwrap();
+                image::save_buffer(
+                    std::env::current_dir()
+                        .unwrap()
+                        .join("target/menu-colors-test.png"),
+                    pixels.as_bytes(),
+                    pixels.width(),
+                    pixels.height(),
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
+                editor.set_page(2);
             }
             if case < 5 || (case >= 10 && case.is_multiple_of(2)) {
                 process(&mut s, &editor, &overlay, Input::Escape);

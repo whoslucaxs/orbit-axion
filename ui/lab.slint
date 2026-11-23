@@ -13,6 +13,20 @@ export global Ink {
     in-out property <color> background-color: #111212;
     out property <color> panel-background: custom-background ? background-color : canvas;
 }
+export global MenuInk {
+    in-out property <color> background: #111212;
+    in-out property <color> surface: #232525D9;
+    in-out property <color> icons: #DFDEDC;
+    in-out property <color> text: #DFDEDC;
+    in-out property <color> muted: #A6A7A2;
+    in-out property <color> border: #DFDEDC28;
+    in-out property <color> title: #00ACAC;
+    in-out property <color> selection-background: #00ACAC33;
+    in-out property <color> selection-icon: #00ACAC;
+    in-out property <color> selection-border: #00ACAC;
+    in-out property <color> shadow: #00000030;
+    in-out property<float> opacity: 0.92;
+}
 component Pill inherits Rectangle {
     in property <string> text;
     in property <bool> accent: false;
@@ -36,22 +50,22 @@ component Face inherits Rectangle {
     in property <bool> interactive: false;
     in property <string> center-title: "ORBIT AXION";
     in property <string> center-text: "";
-    in property <float> glass-opacity: 0.92;
+    in property <float> glass-opacity: MenuInk.opacity;
     callback pick(int);
     callback reorder(int,float,float);
     background: transparent;
     Rectangle { x: parent.width / 2 - 152px * root.zoom; y: parent.height / 2 - 152px * root.zoom; width: 304px * root.zoom; height: 304px * root.zoom;
-        border-radius: 152px * root.zoom; border-width: 1px; border-color: Ink.edge;
-        background: @linear-gradient(115deg, Ink.panel-background.brighter(8%).with-alpha(root.glass-opacity), Ink.panel-background.with-alpha(root.glass-opacity));
-        drop-shadow-blur: 22px; drop-shadow-offset-y: 8px; drop-shadow-color: #00000030;
+        border-radius: 152px * root.zoom; border-width: 1px; border-color: MenuInk.border;
+        background: @linear-gradient(115deg, MenuInk.background.brighter(8%).with-alpha(MenuInk.background.alpha * root.glass-opacity), MenuInk.background.with-alpha(MenuInk.background.alpha * root.glass-opacity));
+        drop-shadow-blur: 22px; drop-shadow-offset-y: 8px; drop-shadow-color: MenuInk.shadow;
     }
     for item[i] in root.items: Rectangle {
         x: parent.width / 2 + item.x * 1px * root.zoom - 29px * root.zoom; y: parent.height / 2 + item.y * 1px * root.zoom - 29px * root.zoom;
         width: 58px * root.zoom; height: 58px * root.zoom; border-radius: 29px * root.zoom; border-width: 1px;
-        border-color: root.selected == i ? Ink.accent : Ink.edge;
-        background: root.selected == i ? Ink.accent.with-alpha(0.2) : @linear-gradient(120deg, Ink.surface.brighter(12%).with-alpha(0.95), Ink.surface.with-alpha(0.72));
+        border-color: root.selected == i ? MenuInk.selection-border : MenuInk.border;
+        background: root.selected == i ? MenuInk.selection-background : @linear-gradient(120deg, MenuInk.surface.brighter(12%), MenuInk.surface);
         animate background { duration: 100ms; }
-        Text { visible: item.image.width == 0; text: item.glyph; color: root.selected == i ? Ink.accent : item.filled ? (item.tint.alpha > 0 ? item.tint : Ink.text) : Ink.muted.with-alpha(0.5); font-family: "Segoe Fluent Icons"; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
+        Text { visible: item.image.width == 0; text: item.glyph; color: root.selected == i ? MenuInk.selection-icon : item.filled ? (item.tint.alpha > 0 ? item.tint : MenuInk.icons) : MenuInk.muted.with-alpha(0.5); font-family: "Segoe Fluent Icons"; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
         Image { visible: item.image.width > 0; source: item.image; x: 16px * root.zoom; y: 16px * root.zoom; width: 26px * root.zoom; height: 26px * root.zoom; image-fit: contain; }
         area := TouchArea { enabled: root.interactive;
             clicked => { root.pick(i); }
@@ -60,9 +74,9 @@ component Face inherits Rectangle {
     }
     Rectangle { x: parent.width / 2 - 70px * root.zoom; y: parent.height / 2 - 48px * root.zoom; width: 140px * root.zoom; height: 96px * root.zoom; background: transparent;
         VerticalLayout { padding: 3px; spacing: 5px;
-            Text { text: root.center-title; color: Ink.accent; font-size: 10px * root.zoom; font-weight: 600; horizontal-alignment: center; }
-            Text { text: root.center-text; color: Ink.text; font-size: 14px * root.zoom; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; }
-            Text { text: "ORBIT / 08"; color: Ink.muted; font-size: 9px * root.zoom; horizontal-alignment: center; }
+            Text { text: root.center-title; color: MenuInk.title; font-size: 10px * root.zoom; font-weight: 600; horizontal-alignment: center; }
+            Text { text: root.center-text; color: MenuInk.text; font-size: 14px * root.zoom; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: "ORBIT / 08"; color: MenuInk.muted; font-size: 9px * root.zoom; horizontal-alignment: center; }
         }
     }
 }
@@ -74,8 +88,7 @@ export component Ring inherits Window {
     in property <string> level;
     in property <string> query;
     in property <string> profile-name;
-    in property <float> glass-opacity: 0.92;
-    Face { zoom: root.zoom; items: root.items; selected: root.selected; glass-opacity: root.glass-opacity;
+    Face { zoom: root.zoom; items: root.items; selected: root.selected;
         center-title: root.query != "" ? "BUSCA / SEARCH" : root.profile-name;
         center-text: root.query != "" ? root.query : root.selected >= 0 ? root.items[root.selected].label + (root.level != "" ? "\n" + root.level : "") : "Orbit Axion";
     }
@@ -139,6 +152,32 @@ export component Editor inherits Window {
     changed background-hex => { root.preview-background(); }
     changed glass-strength => { root.preview-background(); }
     callback preview-background;
+    callback save-menu-style;
+    in-out property<float> menu-opacity: 92;
+    changed menu-opacity => { root.preview-background(); }
+    in-out property<string> menu-background-hex: "#111212";
+    changed menu-background-hex => { root.preview-background(); }
+    in-out property<string> menu-surface-hex: "#232525D9";
+    changed menu-surface-hex => { root.preview-background(); }
+    in-out property<string> menu-icons-hex: "#DFDEDC";
+    changed menu-icons-hex => { root.preview-background(); }
+    in-out property<string> menu-text-hex: "#DFDEDC";
+    changed menu-text-hex => { root.preview-background(); }
+    in-out property<string> menu-muted-hex: "#A6A7A2";
+    changed menu-muted-hex => { root.preview-background(); }
+    in-out property<string> menu-border-hex: "#DFDEDC28";
+    changed menu-border-hex => { root.preview-background(); }
+    in-out property<string> menu-title-hex: "#00ACAC";
+    changed menu-title-hex => { root.preview-background(); }
+    in-out property<string> menu-selection-background-hex: "#00ACAC33";
+    changed menu-selection-background-hex => { root.preview-background(); }
+    in-out property<string> menu-selection-icon-hex: "#00ACAC";
+    changed menu-selection-icon-hex => { root.preview-background(); }
+    in-out property<string> menu-selection-border-hex: "#00ACAC";
+    changed menu-selection-border-hex => { root.preview-background(); }
+    in-out property<string> menu-shadow-hex: "#00000030";
+    changed menu-shadow-hex => { root.preview-background(); }
+
     in-out property <string> profile-name;
     in-out property <string> executables;
     in-out property <int> priority: 0;
@@ -149,6 +188,9 @@ export component Editor inherits Window {
     in-out property <int> trigger-source: 0;
     in-out property <int> keyboard-key: 0;
     in property <string> keyboard-name: "";
+    in property <[string]> keyboard-options;
+    in-out property<int> keyboard-index: 0;
+    callback select-keyboard-key(int);
     in-out property <bool> hold: true;
     in-out property <int> hold-ms: 220;
     in-out property <float> distance: 48;
@@ -209,7 +251,9 @@ export component Editor inherits Window {
                 Text { text: "◎"; color: Ink.accent; font-size: 40px; height: 58px; }
                 Text { text: "Orbit Axion"; color: Ink.text; font-size: 22px; font-weight: 600; }
                 Caption { text: "YOUR FLOW, IN ORBIT"; height: 32px; font-size: 9px; }
-                for name[i] in [root.en ? "Menus & actions" : "Menus e ações", root.en ? "Profiles" : "Perfis", root.en ? "Appearance" : "Preferências", root.en ? "Diagnostics" : "Diagnóstico"]: Pill { text: name; accent: root.page == i; clicked => { root.page = i; } }
+                for name[i] in [root.en ? "Menus & actions" : "Menus e ações", root.en ? "Profiles" : "Perfis", root.en ? "App preferences" : "Preferências do app"]: Pill { text: name; accent: root.page == i; clicked => { root.page = i; } }
+                Pill { text: root.en ? "Menu colors" : "Cores do menu"; accent: root.page == 4; clicked => { root.page = 4; } }
+                Pill { text: root.en ? "Diagnostics" : "Diagnóstico"; accent: root.page == 3; clicked => { root.page = 3; } }
                 Rectangle { vertical-stretch: 1; background: transparent; }
                 Caption { text: root.armed ? (root.en ? "●  Capture active" : "●  Captura ativa") : (root.en ? "○  Capture paused" : "○  Captura pausada"); color: root.armed ? Ink.accent : Ink.muted; }
                 Pill { text: root.armed ? (root.en ? "Pause" : "Pausar") : (root.en ? "Resume" : "Retomar"); clicked => { root.toggle-capture(); } }
@@ -220,7 +264,7 @@ export component Editor inherits Window {
             HorizontalLayout {
                 VerticalLayout { spacing: 5px;
                     Caption { text: root.en ? "WORKSPACE / PERSONAL" : "ESPAÇO / PESSOAL"; color: Ink.accent; }
-                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
+                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : root.page == 4 ? (root.en ? "Your menu. Your palette." : "Seu menu. Sua paleta.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
                 }
                 Pill { text: root.en ? "Export" : "Exportar"; clicked => { root.export-config(); } }
                 Pill { text: root.en ? "Import" : "Importar"; clicked => { root.import-config(); } }
@@ -232,7 +276,7 @@ export component Editor inherits Window {
                             ComboBox { model: root.profiles; current-index: root.profile-index; selected(value) => { root.profile-index = self.current-index; root.switch-profile(self.current-index); } }
                             ComboBox { model: root.menus; current-index: root.menu-index; selected(value) => { root.menu-index = self.current-index; root.switch-menu(self.current-index); } }
                         }
-                        Face { glass-opacity: root.glass-strength / 100; min-width: 320px; min-height: 342px; items: root.items; selected: root.slot-index; interactive: true; center-title: "LIVE PREVIEW"; center-text: root.items[root.slot-index].label; pick(i) => { root.pick-slot(i); } reorder(i,x,y) => { root.reorder(i,x,y); } }
+                        Face { min-width: 320px; min-height: 342px; items: root.items; selected: root.slot-index; interactive: true; center-title: "LIVE PREVIEW"; center-text: root.items[root.slot-index].label; pick(i) => { root.pick-slot(i); } reorder(i,x,y) => { root.reorder(i,x,y); } }
                         Caption { text: root.en ? "Eight positions. Drag an icon to reorder." : "Oito posições. Arraste um ícone para reorganizar."; horizontal-alignment: center; wrap: word-wrap; }
                         LineEdit { text <=> root.menu-name; placeholder-text: root.en ? "Menu name" : "Nome do menu"; }
                         HorizontalBox { padding: 0px; Pill { text: root.en ? "Rename" : "Renomear"; clicked=>{root.rename-menu();} } Pill { text: root.en ? "Remove menu" : "Remover menu"; clicked=>{root.delete-menu();} } }
@@ -320,14 +364,15 @@ export component Editor inherits Window {
                     LineEdit { text <=> root.background-hex; placeholder-text: "#464545"; }
                     Pill { text: root.en ? "Use theme background" : "Usar fundo do tema"; clicked => { root.background-hex = ""; } }
                     Caption { text: (root.en ? "Background opacity: " : "Opacidade do fundo: ") + round(root.glass-strength) + "%"; }
-                    Caption { text: root.en ? "0% transparent · 100% solid. Live preview in the panel and ring." : "0% transparente · 100% sólido. Prévia no painel e no anel."; wrap: word-wrap; }
+                    Caption { text: root.en ? "0% transparent · 100% solid. Applies to the app only." : "0% transparente · 100% sólido. Aplica-se apenas ao app."; wrap: word-wrap; }
                     Slider { value <=> root.glass-strength; minimum: 0; maximum: 100; }
                     Caption { text: root.en ? "Open menu with" : "Abrir menu com"; }
                     ComboBox { model: root.en ? ["Mouse button", "Keyboard key"] : ["Botão do mouse", "Tecla do teclado"]; current-index: root.trigger-source; selected(value) => { root.trigger-source = self.current-index; } }
                     if root.trigger-source == 0: ComboBox { model: root.en ? ["Middle", "Mouse 4", "Mouse 5", "Left", "Right"] : ["Meio", "Mouse 4", "Mouse 5", "Esquerdo", "Direito"]; current-index: root.mouse-button; selected(value) => { root.mouse-button = self.current-index; } }
                     if root.trigger-source == 0: Caption { text: root.en ? "Left/right activation is disabled inside this editor. Extra vendor buttons must be mapped to a standard mouse button." : "Esquerdo/direito não interceptam cliques neste editor. Botões extras do fabricante precisam estar mapeados para um botão padrão do mouse."; wrap: word-wrap; }
+                    if root.trigger-source == 1: ComboBox { model: root.keyboard-options; current-index: root.keyboard-index; selected(value) => { root.select-keyboard-key(self.current-index); } }
                     if root.trigger-source == 1: Caption { text: (root.en ? "Key: " : "Tecla: ") + (root.keyboard-name == "" ? (root.en ? "not configured" : "não configurada") : root.keyboard-name); color: Ink.accent; }
-                    if root.trigger-source == 1: Caption { text: root.en ? "Capture a key below. Activation is paused inside this editor to keep typing free; test in another app. One key, without a modifier chord." : "Capture uma tecla abaixo. A ativação fica desabilitada neste editor para você digitar; teste em outro aplicativo. Uma tecla, sem combinação de modificadores."; wrap: word-wrap; }
+                    if root.trigger-source == 1: Caption { text: root.en ? "Choose a key from the list or capture it below, then Apply preferences. Test activation in another app; typing stays free in this editor." : "Escolha a tecla na lista ou capture abaixo e aplique as preferências. Teste a abertura em outro app; neste editor a digitação fica livre."; wrap: word-wrap; }
                     Pill { text: root.en ? "Capture mouse button or keyboard key (10 s)" : "Capturar botão do mouse ou tecla (10 s)"; clicked=>{root.learn-button();} }
                     CheckBox { text: root.en ? "Hold, move and release (off = click mode)" : "Segurar, mover e soltar (desmarcado = modo clique)"; checked <=> root.hold; }
                     Caption { text: root.en ? "A short tap keeps the menu open. In hold mode, releasing at the center cancels." : "Clique curto mantém o menu aberto. No modo segurar, soltar no centro cancela."; wrap: word-wrap; }
@@ -342,6 +387,46 @@ export component Editor inherits Window {
                     LineEdit { text <=> root.repository; placeholder-text: "owner/repository"; }
                     Pill { text: root.en ? "Apply preferences" : "Aplicar preferências"; accent: true; clicked => { root.save-settings(); } }
                 } }
+            }
+            if root.page == 4: HorizontalLayout { spacing: 22px;
+                Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface; horizontal-stretch: 1;
+                    VerticalBox { padding: 18px; spacing: 10px;
+                        Heading { text: root.en ? "Menu appearance" : "Aparência do menu"; }
+                        Caption { text: root.en ? "Independent from app colors and theme." : "Independente das cores e do tema do aplicativo."; wrap: word-wrap; }
+                        Face { zoom: 0.85; min-width: 280px; min-height: 280px; items: root.items; selected: 0; center-title: "MENU"; center-text: "Orbit Axion"; }
+                        Caption { text: (root.en ? "Menu opacity: " : "Opacidade do menu: ") + round(root.menu-opacity) + "%"; }
+                        Slider { value <=> root.menu-opacity; minimum: 0; maximum: 100; }
+                        Pill { text: root.en ? "Save menu appearance" : "Salvar aparência do menu"; accent: true; clicked => { root.save-menu-style(); } }
+                        Rectangle { background: transparent; vertical-stretch: 1; }
+                    }
+                }
+                Rectangle { width: 342px; border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface;
+                    ScrollView { VerticalBox { padding: 20px; spacing: 10px;
+                        Caption { text: root.en ? "HEX #RRGGBB or #RRGGBBAA (with transparency)" : "HEX #RRGGBB ou #RRGGBBAA (com transparência)"; wrap: word-wrap; }
+                        Caption { text: root.en ? "Background" : "Fundo circular"; }
+                        LineEdit { text <=> root.menu-background-hex; }
+                        Caption { text: root.en ? "Button background" : "Fundo dos botões"; }
+                        LineEdit { text <=> root.menu-surface-hex; }
+                        Caption { text: root.en ? "Icons" : "Ícones"; }
+                        LineEdit { text <=> root.menu-icons-hex; }
+                        Caption { text: root.en ? "Text" : "Texto central"; }
+                        LineEdit { text <=> root.menu-text-hex; }
+                        Caption { text: root.en ? "Secondary text / empty slots" : "Texto secundário / posições vazias"; }
+                        LineEdit { text <=> root.menu-muted-hex; }
+                        Caption { text: root.en ? "Borders" : "Bordas"; }
+                        LineEdit { text <=> root.menu-border-hex; }
+                        Caption { text: root.en ? "Profile / search title" : "Título do perfil / busca"; }
+                        LineEdit { text <=> root.menu-title-hex; }
+                        Caption { text: root.en ? "Selected background" : "Fundo da seleção"; }
+                        LineEdit { text <=> root.menu-selection-background-hex; }
+                        Caption { text: root.en ? "Selected icon" : "Ícone selecionado"; }
+                        LineEdit { text <=> root.menu-selection-icon-hex; }
+                        Caption { text: root.en ? "Selected border" : "Borda da seleção"; }
+                        LineEdit { text <=> root.menu-selection-border-hex; }
+                        Caption { text: root.en ? "Shadow" : "Sombra"; }
+                        LineEdit { text <=> root.menu-shadow-hex; }
+                    } }
+                }
             }
             if root.page == 3: Rectangle { border-radius: 18px; border-width: 1px; border-color: Ink.edge; background: Ink.surface.with-alpha(0.68);
                 VerticalBox { padding: 24px; spacing: 15px;

@@ -249,3 +249,14 @@ pub fn key_name(key: u32) -> String {
         format!("VK 0x{key:02X}")
     }
 }
+
+pub fn keyboard_choices() -> Vec<u32> {
+    (8..=254)
+        .filter(|&key| {
+            orbit_core::model::valid_keyboard_key(key)
+                && (unsafe { MapVirtualKeyW(key, MAPVK_VK_TO_VSC_EX) } != 0
+                    || (0x70..=0x87).contains(&key)
+                    || (0xa6..=0xb7).contains(&key))
+        })
+        .collect()
+}

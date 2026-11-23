@@ -395,6 +395,17 @@ fn key_guard(up: bool, active: bool, preheld: bool, captured: &mut bool) -> Opti
     None
 }
 
+fn matches_activation_key(trigger: u32, key: u32) -> bool {
+    let Some(configured) = trigger.checked_sub(orbit_core::model::KEYBOARD_TRIGGER_BASE) else {
+        return false;
+    };
+    configured == key
+        || matches!(
+            (configured, key),
+            (0x10, 0xa0 | 0xa1) | (0x11, 0xa2 | 0xa3) | (0x12, 0xa4 | 0xa5)
+        )
+}
+
 #[derive(Debug, PartialEq)]
 enum KeyEdge {
     Press,
@@ -455,8 +466,7 @@ unsafe extern "system" fn keyboard_hook(code: i32, w: WPARAM, l: LPARAM) -> LRES
                 && ready
                 && !c.keys[key]
                 && !c.preheld[key]
-                && c.shared.button.load(Ordering::Relaxed)
-                    == orbit_core::model::KEYBOARD_TRIGGER_BASE + key as u32
+                && matches_activation_key(c.shared.button.load(Ordering::Relaxed), key as u32)
                 && !own_foreground()
                 && (c.shared.allowed_origin.load(Ordering::Relaxed) == 0
                     || c.shared.allowed_origin.load(Ordering::Relaxed) == foreground());
@@ -724,6 +734,17 @@ impl Drop for Hooks {
 #[cfg(test)]
 mod input_tests {
     use super::*;
+    #[test]
+    fn keyboard_list_modifiers_match_their_physical_left_and_right_keys() {
+        for (generic, left, right) in [(0x10, 0xa0, 0xa1), (0x11, 0xa2, 0xa3), (0x12, 0xa4, 0xa5)] {
+            assert!(matches_activation_key(0x100 + generic, left));
+            assert!(matches_activation_key(0x100 + generic, right));
+        }
+        assert!(matches_activation_key(0x17c, 0x7c));
+        assert!(!matches_activation_key(0x17c, 0x7d));
+        assert!(!matches_activation_key(1, 0x7c));
+    }
+
     #[test]
     fn keyboard_activation_owns_repeats_and_release_after_closing() {
         assert_eq!(activation_edge(false, false, true), Some(KeyEdge::Press));

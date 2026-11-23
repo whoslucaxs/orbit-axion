@@ -1,3 +1,15 @@
+# Verificações locais — 0.2.4 — 2026-11-22
+
+- 22 testes unitários: migração de cores, independência após reinício, validação RGB/RGBA e verificações anteriores.
+- UI test seleciona F8 e F13 pela lista e verifica o código real escolhido.
+- UI test salva a aparência do menu e exige que as demais preferências permaneçam idênticas.
+- Comparação do buffer completo do menu antes/depois de alterar fundo, opacidade, destaque e tema do aplicativo.
+- Snapshot da página Cores do menu em target/menu-colors-test.png; cantos do anel continuam transparentes.
+
+A lista de teclas funciona sem armar os hooks. A validação não substitui testes de teclas proprietárias/reservadas em todo hardware.
+
+---
+
 # Verificações locais — 0.2.3 — 2026-11-22
 
 - 18 testes unitários incluem tecla configurada, compatibilidade do JSON, persistência, pares de entrada, repetição e soltura após fechamento.
