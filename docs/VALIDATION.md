@@ -1,3 +1,13 @@
+# Verificações locais — 0.2.6 — 2026-11-23
+
+- 24 testes unitários passaram; catálogo inclui os dois identificadores de aplicativos.
+- UI test verificou SVGs incorporados de 256px, categoria Aplicativos, busca sem distinção de maiúsculas, seleção, prévia e gravação dos dois ícones em configuração isolada.
+- Captura da biblioteca inspecionada com os dois ícones renderizados.
+- Regressões de submenu e acionamento passaram; formatador e Clippy sem avisos.
+- Instalação/upgrade/rollback do MSI em VM continuam pendentes.
+
+---
+
 # Verificações locais — 0.2.5 — 2026-11-22
 
 - 24 testes unitários: catálogo de ambas as bibliotecas, cores individuais, geometria central, compatibilidade JSON e verificações anteriores.

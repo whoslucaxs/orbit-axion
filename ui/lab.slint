@@ -74,8 +74,15 @@ component ColorControl inherits Rectangle {
 }
 component Caption inherits Text { color: Ink.muted; font-size: 11px; }
 component Heading inherits Text { color: Ink.text; font-size: 21px; font-weight: 600; }
-export struct RingItem { x: float, y: float, glyph: string, family: string, label: string, image: image, filled: bool, tint: color, custom-icon: bool, custom-background: bool, custom-border: bool, background-color: color, border-color: color }
-export struct IconChoice { id: string, label: string, glyph: string, family: string }
+export global BrandIcons {
+    public pure function image-for-id(id: string) -> image {
+        if id == "brand:voicemeeter" { return @image-url("../assets/icons/custom/voicemeeter.svg"); }
+        if id == "brand:chatgpt" { return @image-url("../assets/icons/custom/chatgpt.svg"); }
+        return @image-url("");
+    }
+}
+export struct RingItem { icon-id: string, x: float, y: float, glyph: string, family: string, label: string, image: image, filled: bool, tint: color, custom-icon: bool, custom-background: bool, custom-border: bool, background-color: color, border-color: color }
+export struct IconChoice { image: image, id: string, label: string, glyph: string, family: string }
 component Face inherits Rectangle {
     in property<float> zoom: 1;
     in property <[RingItem]> items;
@@ -98,6 +105,7 @@ component Face inherits Rectangle {
         background: @linear-gradient(135deg, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.18), transparent, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.035));
     }
     for item[i] in root.items: Rectangle {
+        property <image> resolved-icon: item.image.width > 0 ? item.image : BrandIcons.image-for-id(item.icon-id);
         x: parent.width / 2 + item.x * 1px * root.zoom - 29px * root.zoom; y: parent.height / 2 + item.y * 1px * root.zoom - 29px * root.zoom;
         width: 58px * root.zoom; height: 58px * root.zoom; border-radius: 29px * root.zoom; border-width: 1px;
         border-color: root.selected == i && !root.interactive ? MenuInk.selection-border : item.custom-border ? item.border-color : MenuInk.border;
@@ -107,8 +115,8 @@ component Face inherits Rectangle {
             border-radius: 29px * root.zoom; border-width: 1px; border-color: MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.4);
             background: @linear-gradient(130deg, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.24), transparent, MenuInk.glass-highlight.with-alpha(MenuInk.glass-highlight.alpha / 255.0 * MenuInk.glass-strength * 0.04));
         }
-        Text { visible: item.image.width == 0; text: item.glyph; color: root.selected == i && !root.interactive ? MenuInk.selection-icon : item.filled ? (item.custom-icon ? item.tint : MenuInk.icons) : MenuInk.muted.with-alpha(MenuInk.muted.alpha / 255.0 * 0.5); font-family: item.family; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
-        Image { visible: item.image.width > 0; source: item.image; x: 16px * root.zoom; y: 16px * root.zoom; width: 26px * root.zoom; height: 26px * root.zoom; image-fit: contain; colorize: item.custom-icon ? item.tint : transparent; opacity: item.custom-icon && item.tint.alpha == 0 ? 0 : 1; }
+        Text { visible: parent.resolved-icon.width == 0; text: item.glyph; color: root.selected == i && !root.interactive ? MenuInk.selection-icon : item.filled ? (item.custom-icon ? item.tint : MenuInk.icons) : MenuInk.muted.with-alpha(MenuInk.muted.alpha / 255.0 * 0.5); font-family: item.family; font-size: 23px * root.zoom; horizontal-alignment: center; vertical-alignment: center; }
+        Image { visible: parent.resolved-icon.width > 0; source: parent.resolved-icon; x: 16px * root.zoom; y: 16px * root.zoom; width: 26px * root.zoom; height: 26px * root.zoom; image-fit: contain; colorize: item.custom-icon ? item.tint : transparent; opacity: item.custom-icon && item.tint.alpha == 0 ? 0 : 1; }
         if root.interactive && root.selected == i: Rectangle { x: -3px; y: -3px; width: parent.width + 6px; height: parent.height + 6px; border-radius: 32px * root.zoom; border-width: 1px; border-color: MenuInk.selection-border; background: transparent; }
         area := TouchArea { enabled: root.interactive;
             clicked => { root.pick(i); }
@@ -531,13 +539,14 @@ export component Editor inherits Window {
                     Heading { text: root.en ? "Icon library" : "Biblioteca de ícones"; }
                     HorizontalBox { padding: 0px;
                         LineEdit { text <=> root.icon-query; placeholder-text: root.en ? "Search icons…" : "Buscar ícones…"; }
-                        ComboBox { model: ["Bootstrap + Material", "Bootstrap Icons", "Material Icons"]; current-index: root.icon-library; selected(v) => { root.icon-library = self.current-index; root.icon-page = 0; root.refresh-icons(); } }
+                        ComboBox { model: [root.en ? "All icons" : "Todos os ícones", "Bootstrap Icons", "Material Icons", root.en ? "Apps" : "Aplicativos"]; current-index: root.icon-library; selected(v) => { root.icon-library = self.current-index; root.icon-page = 0; root.refresh-icons(); } }
                     }
                     Caption { text: root.icon-count + (root.en ? " icons · page " : " ícones · página ") + (root.icon-page + 1); }
                     ScrollView { VerticalBox { padding: 0px; spacing: 5px;
                         for entry in root.icon-choices: Rectangle { height: 52px; border-radius: 8px; background: Ink.canvas;
                             HorizontalBox { padding: 8px;
-                                Text { text: entry.glyph; font-family: entry.family; font-size: 26px; color: Ink.text; width: 40px; vertical-alignment: center; }
+                                if entry.image.width > 0: Image { source: entry.image; width: 40px; height: 34px; image-fit: contain; }
+                                if entry.image.width == 0: Text { text: entry.glyph; font-family: entry.family; font-size: 26px; color: Ink.text; width: 40px; vertical-alignment: center; }
                                 Text { text: entry.label; color: Ink.text; vertical-alignment: center; }
                                 Pill { width: 130px; text: root.en ? "Use icon" : "Usar ícone"; clicked => { root.choose-icon(entry.id); } }
                             }

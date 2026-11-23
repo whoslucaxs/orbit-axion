@@ -1,5 +1,6 @@
 //! Real-window controller regressions without mouse injection or installed hooks.
 use super::*;
+use slint::Model;
 pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<State>>, case: u32) {
     let (Some(editor), Some(overlay)) = (ui.upgrade(), ring.upgrade()) else {
         panic!("missing test windows")
@@ -215,6 +216,28 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
                     image::ColorType::Rgba8,
                 )
                 .unwrap();
+                editor.set_icon_query("".into());
+                editor.set_icon_library(3);
+                icon_catalog::refresh(&editor);
+                assert_eq!(editor.get_icon_count(), 2);
+                for choice in editor.get_icon_choices().iter() {
+                    assert_eq!(choice.image.size().width, 256, "missing embedded brand SVG");
+                }
+                editor.set_page(5);
+                let brands = editor.window().take_snapshot().unwrap();
+                image::save_buffer(
+                    std::env::current_dir()
+                        .unwrap()
+                        .join("target/brand-icons-test.png"),
+                    brands.as_bytes(),
+                    brands.width(),
+                    brands.height(),
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
+                editor.set_icon_query("CHATGPT".into());
+                icon_catalog::refresh(&editor);
+                assert_eq!(editor.get_icon_count(), 1);
                 editor.set_icon_query("alarm".into());
                 editor.set_icon_library(1);
                 icon_catalog::refresh(&editor);

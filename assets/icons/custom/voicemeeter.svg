@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <title>Voicemeeter</title>
+  <desc>Vector reconstruction of the VM symbol from the VB-Audio logo. Transparent background.</desc>
+  <g transform="translate(10 37.6) scale(1.1291866029)">
+    <rect x="5" y="4" width="102" height="153" rx="5" fill="#FB0008"/>
+    <path d="M22 42H38.5L56.5 102L74.5 42H91L64.5 119H48.5Z" fill="#FFFFFF"/>
+    <path d="M123 119V42H144L163.5 98L183 42H204V119H188V68L170 119H157L139 68V119Z" fill="#000000"/>
+  </g>
+</svg>

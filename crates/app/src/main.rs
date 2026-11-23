@@ -219,6 +219,7 @@ fn items(slots: &[Option<Slot>; 8], icons: &mut icons::Icons) -> ModelRc<RingIte
                 let slot = slots[i].as_ref();
                 let name = slot.map_or("", |s| s.icon.as_str());
                 RingItem {
+                    icon_id: name.into(),
                     x: x as f32,
                     y: y as f32,
                     glyph: glyph(name).into(),
@@ -1246,6 +1247,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     assert_eq!(ui.get_button_background(), "#00884480");
                     color_picker::set(&ui, 202, "#FFAA00AA".into());
                     color_picker::set(&ui, 200, "#DFDEDCFF".into());
+                    {
+                        use slint::Model as _;
+                        for id in ["brand:voicemeeter", "brand:chatgpt"] {
+                            ui.invoke_choose_icon(id.into());
+                            assert_eq!(ui.get_icon_name(), id);
+                            assert!(ui.get_items().iter().any(|item| item.icon_id == id));
+                            ui.invoke_save_slot();
+                            #[cfg(debug_assertions)]
+                            assert_eq!(
+                                test_state.borrow().config.menus[0].slots[0]
+                                    .as_ref()
+                                    .unwrap()
+                                    .icon,
+                                id
+                            );
+                        }
+                    }
                     ui.invoke_choose_icon("bi:alarm".into());
                     assert_eq!(ui.get_icon_name(), "bi:alarm");
                     ui.invoke_save_slot();

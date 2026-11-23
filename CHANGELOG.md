@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6 — ícones de aplicativos — 2026-11-23
+
+- SVGs do Voicemeeter e ChatGPT incorporados ao executável e à biblioteca de ícones.
+- Categoria Aplicativos, busca por nome e seleção para os botões do menu.
+
 ## 0.2.5 — submenus e personalização visual — 2026-11-22
 
 - Submenus por permanência em modo segurar; soltura fecha a navegação, inclusive sobre centro, vazio e outro submenu.
