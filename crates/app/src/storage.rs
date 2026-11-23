@@ -41,7 +41,7 @@ pub enum Reply {
     Saved(Result<(), String>),
     Imported(Result<Box<Config>, String>),
     Exported(Result<(), String>),
-    Icon(Result<String, String>, String, usize),
+    Icon(Result<String, String>, String, usize, bool),
     Logs(String),
 }
 pub struct Writer {
@@ -67,9 +67,14 @@ impl Writer {
                     Job::Export(c, path, profile) => {
                         Reply::Exported(store.export_bundle(&c, &path, profile.as_deref()))
                     }
-                    Job::Icon(path, menu, slot) => {
-                        Reply::Icon(store.import_icon(&path), menu, slot)
-                    }
+                    Job::Icon(path, menu, slot) => Reply::Icon(
+                        store.import_icon(&path),
+                        menu,
+                        slot,
+                        path.extension().is_some_and(|ext| {
+                            ext.eq_ignore_ascii_case("exe") || ext.eq_ignore_ascii_case("lnk")
+                        }),
+                    ),
                     Job::Diagnostic(path, text) => {
                         Reply::Exported(fs::write(path, text).map_err(|e| e.to_string()))
                     }

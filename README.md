@@ -4,7 +4,7 @@ Menu radial para Windows 11 x64 em Rust + Slint, independente de periféricos Lo
 
 O binário MSVC requer o Microsoft Visual C++ Runtime x64 (VCRUNTIME140.dll); o MSI atual não instala esse pré-requisito.
 
-## Versão 0.2.6
+## Versão 0.2.7
 
 Editor de oito posições, submenus, perfis por caminho de executável com prioridade e herança do Global, modo manual, busca fuzzy, macros canceláveis, atalhos, texto Unicode, abertura de programas/scripts, mídia e comandos de janela/sistema. O anel abre por Meio, Mouse 4, Mouse 5, Esquerdo, Direito ou uma tecla do teclado; funciona por clique ou segurar/soltar, sem tomar o foco. Fechar o editor mantém o app na bandeja; use Sair na bandeja para encerrar.
 
@@ -19,6 +19,7 @@ Configuração local em `%LOCALAPPDATA%/OrbitAxion`: JSON validado, gravação a
 - **Cores do menu:** fundo, botões, ícones, textos, bordas, seleção, sombra e círculo central. O círculo tem cor de fundo, borda e raio próprios (24–76 pixels na escala base do anel).
 - **Menus e ações:** cores individuais de fundo, borda e ícone para cada botão; Padrão volta a herdar a paleta do menu.
 - **Biblioteca de ícones:** 2.078 Bootstrap Icons e 2.234 Material Icons, com busca, filtro e paginação, incorporados ao executável para uso offline. Na categoria **Aplicativos**, selecione Voicemeeter ou ChatGPT; ambos são SVGs incorporados. Ícones de arquivo continuam disponíveis.
+- **Ícone de um executável:** selecione um botão em Menus e ações e clique em **Ícone de um executável…**. Escolha EXE ou LNK; o ícone é extraído em preto e branco e abre a página de ajustes. Controle a intensidade do preto e branco (0–100%), brilho (−100–100%), contraste (0–200%) e inversão. A prévia é automática; clique em **Salvar ação** para gravar por botão. **Restaurar filtros** recupera as cores originais. O arquivo de origem permanece intacto; imagens PNG/JPG/ICO importadas também aceitam os filtros.
 - **Liquid Glass:** opções independentes para o app e para o menu. É uma adaptação visual em Slint, com transparência, relevo e reflexos; não implementa as APIs Apple de refração de fundo. O fundo externo do anel permanece transparente.
 - **Submenus em modo segurar:** pause 300 ms sobre um submenu para entrar mantendo o acionador pressionado. Soltar encerra o gesto, inclusive sobre o centro ou posições vazias. O modo clique mantém navegação persistente.
 
@@ -55,7 +56,7 @@ cargo run --locked -p orbit-axion --bin orbit-axion -- --ui-test
 
 ```powershell
 python packaging/windows-msi/collect_notices.py
-python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.6-x64.msi 0.2.6
+python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.7-x64.msi 0.2.7
 ```
 
 Empacotamento nativo MSI requer Python 3.9–3.12 no Windows (`msilib`). Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build extrai o CAB e compara os hashes dos arquivos incorporados; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.

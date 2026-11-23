@@ -198,6 +198,11 @@ export component Editor inherits Window {
     in-out property <bool> elevated: false;
     in-out property <int> submenu-index: 0;
     in-out property <string> icon-name;
+    in-out property <bool> icon-is-file: false;
+    in-out property <float> icon-grayscale: 0;
+    in-out property <float> icon-brightness: 0;
+    in-out property <float> icon-contrast: 100;
+    in-out property <bool> icon-invert: false;
     in-out property<string> icon-color;
     in-out property<string> accent-hex: "#00ACAC";
     changed accent-hex => { root.preview-background(); }
@@ -308,6 +313,7 @@ export component Editor inherits Window {
     callback refresh-audio;
     callback browse-target;
     callback import-icon;
+    callback import-executable-icon;
     callback new-profile;
     callback duplicate-profile;
     callback delete-profile;
@@ -351,7 +357,7 @@ export component Editor inherits Window {
             HorizontalLayout {
                 VerticalLayout { spacing: 5px;
                     Caption { text: root.en ? "WORKSPACE / PERSONAL" : "ESPAÇO / PESSOAL"; color: Ink.accent; }
-                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : root.page == 5 ? (root.en ? "An icon for every action." : "Um ícone para cada ação.") : root.page == 4 ? (root.en ? "Your menu. Your palette." : "Seu menu. Sua paleta.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
+                    Heading { text: root.page == 0 ? (root.en ? "Make room for your flow." : "Seu fluxo, ao alcance do mouse.") : root.page == 1 ? (root.en ? "A ring for every context." : "Um anel para cada contexto.") : root.page == 2 ? (root.en ? "Quietly yours." : "Do seu jeito, sem excessos.") : root.page == 6 ? (root.en ? "Make the icon yours." : "O ícone do seu jeito.") : root.page == 5 ? (root.en ? "An icon for every action." : "Um ícone para cada ação.") : root.page == 4 ? (root.en ? "Your menu. Your palette." : "Seu menu. Sua paleta.") : (root.en ? "Under the surface." : "Por dentro do Orbit."); }
                 }
                 Pill { text: root.en ? "Export" : "Exportar"; clicked => { root.export-config(); } }
                 Pill { text: root.en ? "Import" : "Importar"; clicked => { root.import-config(); } }
@@ -409,8 +415,10 @@ export component Editor inherits Window {
                         if root.action-type == 10: Pill { text: root.en ? "Update selected step" : "Atualizar etapa selecionada"; clicked=>{root.macro-update();} }
                         Caption { text: root.en ? "Icon (library name or imported file)" : "Ícone (nome da biblioteca ou arquivo)"; wrap: word-wrap; }
                         LineEdit { text <=> root.icon-name; placeholder-text: "volume · mic · play · folder · copy · settings"; }
-                        Pill { text: root.en ? "Browse 4,312 icons…" : "Escolher entre 4.312 ícones…"; clicked => { root.page = 5; root.refresh-icons(); } }
-                        Pill { text: root.en ? "Import icon…" : "Importar ícone…"; clicked => { root.import-icon(); } }
+                        Pill { text: root.en ? "Browse icon library…" : "Biblioteca de ícones…"; clicked => { root.page = 5; root.refresh-icons(); } }
+                        Pill { text: root.en ? "Import image…" : "Importar imagem…"; clicked => { root.import-icon(); } }
+                        Pill { text: root.en ? "Icon from executable…" : "Ícone de um executável…"; clicked => { root.import-executable-icon(); } }
+                        if root.icon-is-file: Pill { text: root.en ? "Adjust icon filters…" : "Ajustar filtros do ícone…"; clicked => { root.page = 6; } }
                         Caption { text: root.en ? "Icon color" : "Cor do ícone"; }
                         ColorControl { en: root.en; value: root.icon-color-preview; pick => { root.pick-color(200); } alpha-changed(v) => { root.color-opacity(200,v); } reset => { root.reset-color(200); } }
                         Caption { text: root.en ? "This button background" : "Fundo deste botão"; }
@@ -556,6 +564,29 @@ export component Editor inherits Window {
                         Pill { text: root.en ? "Previous" : "Anterior"; clicked => { root.icon-page = max(0,root.icon-page - 1); root.refresh-icons(); } }
                         Pill { text: root.en ? "Next" : "Próxima"; clicked => { root.icon-page += 1; root.refresh-icons(); } }
                         Pill { text: root.en ? "Back to action" : "Voltar à ação"; clicked => { root.page = 0; } }
+                    }
+                }
+            }
+            if root.page == 6: Rectangle { border-radius: 18px; background: Ink.surface;
+                VerticalBox { padding: 24px; spacing: 12px;
+                    Heading { text: root.en ? "Adjust icon" : "Ajustar ícone"; }
+                    Caption { text: root.en ? "Live preview. The original image is preserved." : "Prévia em tempo real. A imagem original é preservada."; wrap: word-wrap; }
+                    Rectangle { height: 140px; border-radius: 12px; background: Ink.canvas;
+                        Image { source: root.items[root.slot-index].image; width: 100px; height: 100px; x: (parent.width - self.width) / 2; y: 20px; image-fit: contain; }
+                    }
+                    Caption { text: (root.en ? "Black and white: " : "Preto e branco: ") + round(root.icon-grayscale) + "%"; }
+                    Slider { value <=> root.icon-grayscale; minimum: 0; maximum: 100; changed(v) => { root.preview-slot(); } }
+                    Caption { text: (root.en ? "Brightness: " : "Brilho: ") + round(root.icon-brightness) + "%"; }
+                    Slider { value <=> root.icon-brightness; minimum: -100; maximum: 100; changed(v) => { root.preview-slot(); } }
+                    Caption { text: (root.en ? "Contrast: " : "Contraste: ") + round(root.icon-contrast) + "%"; }
+                    Slider { value <=> root.icon-contrast; minimum: 0; maximum: 200; changed(v) => { root.preview-slot(); } }
+                    CheckBox { text: root.en ? "Invert colors" : "Inverter cores"; checked <=> root.icon-invert; toggled => { root.preview-slot(); } }
+                    Caption { text: root.en ? "0% black and white restores the original colors. Icon tint is applied separately in the menu." : "0% de preto e branco recupera as cores originais. A cor do ícone é aplicada separadamente no menu."; wrap: word-wrap; }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                    HorizontalBox { padding: 0px;
+                        Pill { text: root.en ? "Reset filters" : "Restaurar filtros"; clicked => { root.icon-grayscale = 0; root.icon-brightness = 0; root.icon-contrast = 100; root.icon-invert = false; root.preview-slot(); } }
+                        Pill { text: root.en ? "Back to action" : "Voltar à ação"; clicked => { root.page = 0; } }
+                        Pill { text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
                     }
                 }
             }

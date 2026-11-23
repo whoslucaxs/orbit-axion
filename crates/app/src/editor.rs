@@ -120,12 +120,17 @@ fn load_slot(ui: &Editor, s: &mut State) {
     s.steps.clear();
     ui.set_elevated(false);
     ui.set_confirm(false);
+    ui.set_icon_name("".into());
+    ui.set_icon_is_file(false);
+    set_icon_filters(ui, IconFilters::default());
     ui.set_icon_color("".into());
     ui.set_button_background("".into());
     ui.set_button_border("".into());
     if let Some(slot) = &slots[s.slot] {
         ui.set_slot_name(slot.name.clone().into());
         ui.set_icon_name(slot.icon.clone().into());
+        ui.set_icon_is_file(std::path::Path::new(&slot.icon).is_absolute());
+        set_icon_filters(ui, slot.icon_filters);
         ui.set_confirm(slot.confirm);
         ui.set_icon_color(slot.color.clone().unwrap_or_default().into());
         ui.set_button_background(slot.background_color.clone().unwrap_or_default().into());
@@ -380,6 +385,7 @@ fn save_slot(ui: &Editor, s: &mut State) -> Result<(), String> {
     let candidate = Slot {
         name: ui.get_slot_name().to_string(),
         icon: ui.get_icon_name().to_string(),
+        icon_filters: icon_filters(ui),
         confirm: ui.get_confirm(),
         background_color: (!ui.get_button_background().is_empty())
             .then(|| ui.get_button_background().to_string()),
@@ -398,6 +404,68 @@ fn save_slot(ui: &Editor, s: &mut State) -> Result<(), String> {
         return Err(e);
     }
     Ok(())
+}
+pub fn icon_filters(ui: &Editor) -> IconFilters {
+    IconFilters {
+        grayscale: ui.get_icon_grayscale().round().clamp(0.0, 100.0) as u8,
+        brightness: ui.get_icon_brightness().round().clamp(-100.0, 100.0) as i16,
+        contrast: ui.get_icon_contrast().round().clamp(0.0, 200.0) as u16,
+        invert: ui.get_icon_invert(),
+    }
+}
+pub fn set_icon_filters(ui: &Editor, filters: IconFilters) {
+    ui.set_icon_grayscale(filters.grayscale as f32);
+    ui.set_icon_brightness(filters.brightness as f32);
+    ui.set_icon_contrast(filters.contrast as f32);
+    ui.set_icon_invert(filters.invert);
+}
+pub fn preview_slot(u: &Editor, s: &mut State) {
+    let mut slots = s.config.menus[s.menu].slots.clone();
+    if let Some(slot) = slots[s.slot].as_mut() {
+        slot.name = u.get_slot_name().to_string();
+    }
+    if slots[s.slot].is_none() {
+        slots[s.slot] = Some(Slot {
+            name: u.get_slot_name().to_string(),
+            icon: u.get_icon_name().to_string(),
+            icon_filters: icon_filters(u),
+            confirm: false,
+            color: None,
+            background_color: None,
+            border_color: None,
+            action: Action::Settings,
+        });
+    }
+    if let Some(slot) = slots[s.slot].as_mut() {
+        slot.icon = u.get_icon_name().to_string();
+        slot.icon_filters = icon_filters(u);
+        slot.color = (!u.get_icon_color().is_empty()).then(|| u.get_icon_color().to_string());
+        slot.background_color =
+            (!u.get_button_background().is_empty()).then(|| u.get_button_background().to_string());
+        slot.border_color =
+            (!u.get_button_border().is_empty()).then(|| u.get_button_border().to_string());
+    }
+    u.set_icon_is_file(std::path::Path::new(u.get_icon_name().as_str()).is_absolute());
+    color_picker::update_swatches(u);
+    u.set_items(items(&slots, &mut s.icons));
+}
+fn import_icon(ui: &Editor, state: &mut State, executable: bool) {
+    let dialog = if executable {
+        rfd::FileDialog::new().add_filter("Executáveis e atalhos", &["exe", "lnk"])
+    } else {
+        rfd::FileDialog::new().add_filter("Imagens de ícone", &["png", "jpg", "jpeg", "ico"])
+    };
+    if let Some(path) = dialog.pick_file() {
+        let result = state.writer.request(storage::Job::Icon(
+            path,
+            state.config.menus[state.menu].id.clone(),
+            state.slot,
+        ));
+        ui.set_status(match result {
+            Ok(()) => "Importando ícone…".into(),
+            Err(e) => e.into(),
+        });
+    }
 }
 pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>) {
     macro_rules! bind {
@@ -473,33 +541,9 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         });
     }
     bind!(on_preview_slot, |u, s, _r| {
-        let mut slots = s.config.menus[s.menu].slots.clone();
-        if let Some(slot) = slots[s.slot].as_mut() {
-            slot.name = u.get_slot_name().to_string();
-            slot.icon = u.get_icon_name().to_string();
-        }
-        if slots[s.slot].is_none() {
-            slots[s.slot] = Some(Slot {
-                name: u.get_slot_name().to_string(),
-                icon: u.get_icon_name().to_string(),
-                confirm: false,
-                color: None,
-                background_color: None,
-                border_color: None,
-                action: Action::Settings,
-            });
-        }
-        if let Some(slot) = slots[s.slot].as_mut() {
-            slot.icon = u.get_icon_name().to_string();
-            slot.color = (!u.get_icon_color().is_empty()).then(|| u.get_icon_color().to_string());
-            slot.background_color = (!u.get_button_background().is_empty())
-                .then(|| u.get_button_background().to_string());
-            slot.border_color =
-                (!u.get_button_border().is_empty()).then(|| u.get_button_border().to_string());
-        }
-        color_picker::update_swatches(&u);
-        u.set_items(items(&slots, &mut s.icons));
+        preview_slot(&u, s);
     });
+
     bind!(on_rename_menu, |u, s, _r| {
         if u.get_menu_name().trim().is_empty() {
             u.set_status("Informe o nome do menu".into());
@@ -567,24 +611,12 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         }
     });
     bind!(on_import_icon, |u, s, _r| {
-        if let Some(path) = rfd::FileDialog::new()
-            .add_filter(
-                "Ícones e executáveis",
-                &["png", "jpg", "jpeg", "ico", "exe", "lnk"],
-            )
-            .pick_file()
-        {
-            let result = s.writer.request(storage::Job::Icon(
-                path,
-                s.config.menus[s.menu].id.clone(),
-                s.slot,
-            ));
-            u.set_status(match result {
-                Ok(()) => "Importando ícone…".into(),
-                Err(e) => e.into(),
-            });
-        }
+        import_icon(&u, s, false);
     });
+    bind!(on_import_executable_icon, |u, s, _r| {
+        import_icon(&u, s, true);
+    });
+
     bind!(on_new_menu, |u, s, _r| {
         let id = format!("menu-{}", storage::timestamp());
         s.config.menus.push(Menu {

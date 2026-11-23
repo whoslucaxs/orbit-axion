@@ -203,10 +203,30 @@ pub struct Menu {
     pub name: String,
     pub slots: [Option<Slot>; 8],
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(default)]
+pub struct IconFilters {
+    pub grayscale: u8,
+    pub brightness: i16,
+    pub contrast: u16,
+    pub invert: bool,
+}
+impl Default for IconFilters {
+    fn default() -> Self {
+        Self {
+            grayscale: 0,
+            brightness: 0,
+            contrast: 100,
+            invert: false,
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Slot {
     pub name: String,
     pub icon: String,
+    #[serde(default)]
+    pub icon_filters: IconFilters,
     pub confirm: bool,
     #[serde(default)]
     pub color: Option<String>,
@@ -347,6 +367,7 @@ impl Default for Config {
                     Some(Slot {
                         name: name.into(),
                         icon: icon.into(),
+                        icon_filters: IconFilters::default(),
                         confirm: false,
                         color: None,
                         background_color: None,
@@ -499,6 +520,12 @@ impl Config {
                 {
                     return Err("Cor do ícone inválida: use #RRGGBB".into());
                 }
+                if slot.icon_filters.grayscale > 100
+                    || !(-100..=100).contains(&slot.icon_filters.brightness)
+                    || slot.icon_filters.contrast > 200
+                {
+                    return Err("Filtros do ícone fora do intervalo".into());
+                }
                 action_valid(&slot.action, 0)?;
             }
         }
@@ -618,6 +645,51 @@ pub fn valid_color(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn icon_filters_roundtrip_validate_and_default_for_legacy_slots() {
+        let mut config = Config::default();
+        let filters = IconFilters {
+            grayscale: 100,
+            brightness: -25,
+            contrast: 150,
+            invert: true,
+        };
+        config.menus[0].slots[0].as_mut().unwrap().icon_filters = filters;
+        config.validate().unwrap();
+        let json = serde_json::to_string(&config).unwrap();
+        let loaded: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            loaded.menus[0].slots[0].as_ref().unwrap().icon_filters,
+            filters
+        );
+        for invalid in [
+            IconFilters {
+                grayscale: 101,
+                ..filters
+            },
+            IconFilters {
+                brightness: 101,
+                ..filters
+            },
+            IconFilters {
+                contrast: 201,
+                ..filters
+            },
+        ] {
+            config.menus[0].slots[0].as_mut().unwrap().icon_filters = invalid;
+            assert!(config.validate().is_err());
+        }
+        let mut legacy = serde_json::to_value(Config::default()).unwrap();
+        legacy["menus"][0]["slots"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("icon_filters");
+        let legacy: Config = serde_json::from_value(legacy).unwrap();
+        assert_eq!(
+            legacy.menus[0].slots[0].as_ref().unwrap().icon_filters,
+            IconFilters::default()
+        );
+    }
     #[test]
     fn per_button_colors_and_center_geometry_are_validated_and_legacy_defaults_work() {
         let mut config = Config::default();

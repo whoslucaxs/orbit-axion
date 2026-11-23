@@ -239,7 +239,10 @@ fn items(slots: &[Option<Slot>; 8], icons: &mut icons::Icons) -> ModelRc<RingIte
                         .unwrap_or_default(),
                     label: slot.map_or("Vazia / Empty", |s| s.name.as_str()).into(),
                     image: if std::path::Path::new(name).is_absolute() {
-                        icons.get(name)
+                        icons.get(
+                            name,
+                            slot.map_or_else(IconFilters::default, |s| s.icon_filters),
+                        )
                     } else {
                         slint::Image::default()
                     },
@@ -694,10 +697,7 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
     }
 
     if state.icons.poll() {
-        ui.set_items(items(
-            &state.config.menus[state.menu].slots,
-            &mut state.icons,
-        ));
+        editor::preview_slot(ui, state);
         if let Some(s) = &state.session {
             ring.set_items(items(&s.slots, &mut state.icons));
         }
@@ -718,15 +718,25 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
                 Err(e) => e.into(),
             }),
             storage::Reply::Logs(text) => ui.set_technical_log(text.into()),
-            storage::Reply::Icon(result, menu, slot) => match result {
+            storage::Reply::Icon(result, menu, slot, executable) => match result {
                 Ok(path) => {
                     if state.config.menus[state.menu].id == menu && state.slot == slot {
                         ui.set_icon_name(path.into());
-                        let mut slots = state.config.menus[state.menu].slots.clone();
-                        if let Some(item) = slots[state.slot].as_mut() {
-                            item.icon = ui.get_icon_name().to_string();
+                        editor::set_icon_filters(
+                            ui,
+                            IconFilters {
+                                grayscale: if executable { 100 } else { 0 },
+                                ..Default::default()
+                            },
+                        );
+                        ui.set_icon_color("".into());
+                        editor::preview_slot(ui, state);
+                        if executable {
+                            ui.set_page(6);
                         }
-                        ui.set_items(items(&slots, &mut state.icons));
+                        ui.set_status(
+                            "Ícone importado. Ajuste os filtros e clique em Salvar ação.".into(),
+                        );
                     }
                 }
                 Err(e) => ui.set_status(e.into()),

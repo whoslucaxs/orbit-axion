@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.7 — ícones de executáveis e filtros — 2026-11-23
+
+- Botão próprio para extrair ícones de executáveis e atalhos; abre os ajustes com preto e branco em 100%.
+- Prévia com intensidade de escala de cinza, brilho, contraste e inversão de cores, salvos por botão.
+- Filtros reversíveis, sem modificar a imagem de origem; também disponíveis para imagens importadas.
+- Carregamento assíncrono preserva a prévia dos ajustes ainda não salvos.
+
 ## 0.2.6 — ícones de aplicativos — 2026-11-23
 
 - SVGs do Voicemeeter e ChatGPT incorporados ao executável e à biblioteca de ícones.

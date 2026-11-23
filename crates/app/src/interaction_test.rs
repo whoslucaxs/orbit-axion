@@ -7,11 +7,19 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
     };
     if case == 14 {
         close(&mut state.borrow_mut(), &overlay);
-        submenu_regression(&editor, &overlay, &mut state.borrow_mut());
-        println!(
-            "INTERACTION OK: five mouse buttons, keyboard triggers, delayed short releases, click mode and persistent overlay"
-        );
-        let _ = slint::quit_event_loop();
+        {
+            let s = state.borrow();
+            let executable = std::path::PathBuf::from(std::env::var_os("WINDIR").unwrap())
+                .join("System32/notepad.exe");
+            s.writer
+                .request(storage::Job::Icon(
+                    executable,
+                    s.config.menus[s.menu].id.clone(),
+                    s.slot,
+                ))
+                .unwrap();
+        }
+        wait_icon_filter(ui, ring, state, None, 0);
         return;
     }
     let center = native::cursor().unwrap();
@@ -410,4 +418,101 @@ fn submenu_regression(ui: &Editor, ring: &Ring, state: &mut State) {
     );
     process(state, ui, ring, Input::Escape);
     println!("SUBMENU OK: hold release closes child/empty/back targets; click mode preserved");
+}
+
+fn wait_icon_filter(
+    ui: slint::Weak<Editor>,
+    ring: slint::Weak<Ring>,
+    state: Rc<RefCell<State>>,
+    original: Option<(String, Vec<u8>, Vec<u8>)>,
+    attempt: u32,
+) {
+    slint::Timer::single_shot(Duration::from_millis(120), move || {
+        let editor = ui.upgrade().unwrap();
+        editor.invoke_pump();
+        let image = editor
+            .get_items()
+            .row_data(editor.get_slot_index() as usize)
+            .unwrap()
+            .image;
+        if !editor.get_icon_is_file() || image.size().width == 0 {
+            assert!(
+                attempt < 40,
+                "extracted icon did not load: {}",
+                editor.get_status()
+            );
+            wait_icon_filter(ui, ring, state, original, attempt + 1);
+            return;
+        }
+        let pixels = image.to_rgba8().unwrap();
+        if let Some((path, source, grayscale)) = original {
+            assert_ne!(
+                pixels.as_bytes(),
+                grayscale.as_slice(),
+                "filters did not update the preview"
+            );
+            assert_eq!(
+                std::fs::read(path).unwrap(),
+                source,
+                "filters modified the source image"
+            );
+            editor.invoke_save_slot();
+            editor.invoke_pick_slot(1);
+            editor.invoke_pick_slot(0);
+            assert_eq!(
+                editor::icon_filters(&editor),
+                IconFilters {
+                    grayscale: 100,
+                    brightness: 25,
+                    contrast: 140,
+                    invert: true
+                }
+            );
+            editor.set_page(6);
+            let snapshot = editor.window().take_snapshot().unwrap();
+            image::save_buffer(
+                std::env::current_dir()
+                    .unwrap()
+                    .join("target/executable-icon-test.png"),
+                snapshot.as_bytes(),
+                snapshot.width(),
+                snapshot.height(),
+                image::ColorType::Rgba8,
+            )
+            .unwrap();
+            let overlay = ring.upgrade().unwrap();
+            submenu_regression(&editor, &overlay, &mut state.borrow_mut());
+            println!(
+                "ICON FILTERS OK: executable extraction, grayscale, live filters, source preservation and per-slot persistence"
+            );
+            println!("INTERACTION OK: mouse buttons, keyboard triggers and submenu release");
+            let _ = slint::quit_event_loop();
+        } else {
+            assert_eq!(editor.get_icon_grayscale(), 100.0);
+            assert!(
+                pixels
+                    .as_bytes()
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|p| p[0] == p[1] && p[1] == p[2])
+            );
+            assert!(
+                pixels
+                    .as_bytes()
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .any(|p| p[3] > 0)
+            );
+            let path = editor.get_icon_name().to_string();
+            let source = std::fs::read(&path).unwrap();
+            let original = Some((path, source, pixels.as_bytes().to_vec()));
+            editor.set_icon_brightness(25.0);
+            editor.set_icon_contrast(140.0);
+            editor.set_icon_invert(true);
+            editor.invoke_preview_slot();
+            wait_icon_filter(ui, ring, state, original, 0);
+        }
+    });
 }

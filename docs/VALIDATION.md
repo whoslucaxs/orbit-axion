@@ -1,3 +1,14 @@
+# Verificações locais — 0.2.7 — 2026-11-23
+
+- 26 testes unitários: filtros preservam alpha e cores sem ajustes, escala de cinza, brilho, contraste, inversão, limites e compatibilidade com configurações antigas.
+- UI test extraiu o ícone real de System32/notepad.exe no worker, verificou preto e branco inicial, mudança da prévia, imagem de origem intacta e persistência dos filtros após trocar de botão.
+- Caminho com separadores mistos normalizado para a API Shell; COM inicializado e liberado no contexto da extração.
+- Captura da página de filtros inspecionada; controles e botões visíveis.
+- Regressões de submenu e acionamento passaram; formatador e Clippy sem avisos.
+- Instalação/upgrade/rollback do MSI em VM continuam pendentes.
+
+---
+
 # Verificações locais — 0.2.6 — 2026-11-23
 
 - 24 testes unitários passaram; catálogo inclui os dois identificadores de aplicativos.

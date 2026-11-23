@@ -133,12 +133,31 @@ pub fn memory_mb() -> u64 {
 }
 
 pub fn extract_icon(path: &std::path::Path) -> std::result::Result<Vec<u8>, String> {
+    use windows::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize};
+    struct ComApartment(bool);
+    impl Drop for ComApartment {
+        fn drop(&mut self) {
+            if self.0 {
+                unsafe {
+                    CoUninitialize();
+                }
+            }
+        }
+    }
+    let initialized = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    if initialized.is_err() && initialized != RPC_E_CHANGED_MODE {
+        return Err(format!(
+            "Falha ao inicializar a extração do ícone: {initialized}"
+        ));
+    }
+    let _apartment = ComApartment(initialized.is_ok());
     use windows::{
         Win32::{Graphics::Gdi::*, Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES, UI::Shell::*},
         core::PCWSTR,
     };
     let text: Vec<u16> = path
         .to_string_lossy()
+        .replace('/', "\\")
         .encode_utf16()
         .chain(Some(0))
         .collect();
