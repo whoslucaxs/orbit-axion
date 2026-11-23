@@ -1,82 +1,129 @@
-# Orbit Axion
+<p align="center">
+  <img src="docs/media/header.png" alt="Orbit Axion — Seu fluxo, em órbita." width="100%">
+</p>
 
-Menu radial para Windows 11 x64 em Rust + Slint, independente de periféricos Logitech. GPL-3.0-only.
+<p align="center">
+  <a href="https://github.com/whoslucaxs/orbit-axion/actions/workflows/ci.yml"><img src="https://github.com/whoslucaxs/orbit-axion/actions/workflows/ci.yml/badge.svg" alt="Windows CI"></a>
+  <img src="https://img.shields.io/badge/Windows_11-x64-00ACAC?style=flat-square" alt="Windows 11 x64">
+  <img src="https://img.shields.io/badge/Rust_%2B_Slint-native-464545?style=flat-square" alt="Rust e Slint">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-DFDEDC?style=flat-square" alt="Licença GPL 3.0"></a>
+</p>
 
-O binário MSVC requer o Microsoft Visual C++ Runtime x64 (VCRUNTIME140.dll); o MSI atual não instala esse pré-requisito.
+<p align="center">
+  <strong>Oito ações ao alcance do mouse. Um menu para cada contexto.</strong><br>
+  Menu radial para Windows, com perfis por aplicativo, atalhos, macros e controle de áudio.<br>
+  Desenvolvido em Rust + Slint, independente de periféricos Logitech.
+</p>
 
-## Versão 0.2.9
+<p align="center">
+  <a href="#primeiros-passos">Primeiros passos</a> ·
+  <a href="#sua-aparência-seu-menu">Personalização</a> ·
+  <a href="docs/DEVELOPMENT.md">Compilar e testar</a> ·
+  <a href="CHANGELOG.md">Novidades</a>
+</p>
 
-Ícone orbital fornecido pelo usuário incorporado ao executável, janelas, bandeja, marca do editor e atalho instalado. A imagem original está preservada em `assets/branding/`.
+## Menos caminhos. Mais ações.
 
-Editor de oito posições, submenus, perfis por caminho de executável com prioridade e herança do Global, modo manual, busca fuzzy, macros canceláveis, atalhos, texto Unicode, abertura de programas/scripts, mídia e comandos de janela/sistema. O anel abre por Meio, Mouse 4, Mouse 5, Esquerdo, Direito ou uma tecla do teclado; funciona por clique ou segurar/soltar, sem tomar o foco. Fechar o editor mantém o app na bandeja; use Sair na bandeja para encerrar.
+Segure o botão, aponte para uma ação e solte. Ou use o modo clique para navegar com calma. O anel aparece no cursor sem tomar o foco do aplicativo em uso.
 
-Tema claro/escuro seguindo o sistema, paleta Inked (#000000, #DFDEDC, #A6A7A2, #464545, #00ACAC), superfícies translúcidas e brilho discreto. Tamanho, opacidade do fundo (0–100%), cor de fundo HEX, cor de destaque, ícones, sons e idioma português/inglês configuráveis. Cor de fundo vazia segue o tema do aplicativo. A página **Cores do menu** controla uma paleta independente: fundo, botões, ícones, texto, texto secundário, bordas, título, seleção e sombra, além da opacidade. As cores são escolhidas pelo seletor visual nativo do Windows, com controles de opacidade na interface. O botão **Salvar aparência do menu** salva somente a aparência do anel. Configurações antigas são migradas uma única vez para preservar a aparência anterior. Esquerdo/direito continuam livres dentro do editor para permitir configuração. Botões extras do fabricante precisam ser mapeados pelo driver para um botão padrão reconhecido pelo Windows.
+<p align="center">
+  <img src="docs/media/radial-menu.png" alt="Menu radial do Orbit Axion com oito ações e círculo central" width="360">
+</p>
 
-Áudio Windows por saída padrão ou endpoint específico; Voicemeeter Potato com oito strips e cinco buses. A roda ajusta somente sobre o ícone de volume; soltar após rolar não executa outra ação. Provedor indisponível mostra erro, sem trocar silenciosamente para outro. Potato deve estar instalado e aberto: a DLL proprietária não é distribuída.
+| Para o seu fluxo | O que você pode configurar |
+| --- | --- |
+| **Ações do dia a dia** | Aplicativos, sites, arquivos, atalhos, texto, mídia e comandos de janela. |
+| **Contextos diferentes** | Perfis por executável, prioridades, herança do Global e seleção manual. |
+| **Mais espaço** | Submenus, busca e macros com cancelamento. |
+| **Áudio na roda do mouse** | Volume do Windows por saída ou endpoint; integração com Voicemeeter Potato. |
+| **Seu acionador** | Cinco botões padrão do mouse ou uma tecla do teclado; modo clique ou segurar. |
+| **Tudo local** | JSON, backups, importação e exportação de configurações com os ícones. |
 
-Configuração local em `%LOCALAPPDATA%/OrbitAxion`: JSON validado, gravação atômica, até 30 backups e recuperação de arquivo inválido. Importação/exportação completa ou por perfil incorpora ícones. Sem telemetria, nuvem ou histórico de ações. Inicialização com Windows é opcional. O modo `--watchdog` reinicia falhas e oferece modo seguro; `--safe-mode` abre sem interceptação de entrada.
+## Sua aparência, seu menu
 
-## Personalização visual
+O aplicativo e o menu têm paletas independentes. Escolha cores com o seletor visual, ajuste transparência e personalize fundo, borda e ícone de cada botão. O círculo central também tem cor, borda e raio próprios.
 
-- **Cores do menu:** fundo, botões, ícones, textos, bordas, seleção, sombra e círculo central. O círculo tem cor de fundo, borda e raio próprios (24–76 pixels na escala base do anel).
-- **Menus e ações:** cores individuais de fundo, borda e ícone para cada botão; Padrão volta a herdar a paleta do menu.
-- **Biblioteca de ícones:** 2.078 Bootstrap Icons e 2.234 Material Icons, com busca, filtro e paginação, incorporados ao executável para uso offline. Na categoria **Aplicativos**, selecione Voicemeeter ou ChatGPT; ambos são SVGs incorporados. Ícones de arquivo continuam disponíveis.
-- **Ícone automático do programa:** ao selecionar um EXE/LNK pelo campo de destino da ação, o botão já recebe o ícone dele. Colar um caminho existente também aciona a extração. O editor permanece na ação; clique em **Ajustar filtros do ícone…** se quiser personalizá-lo e em **Salvar ação** para gravar.
-- **Ícone de um executável:** selecione um botão em Menus e ações e clique em **Ícone de um executável…**. Escolha EXE ou LNK; o ícone é extraído em preto e branco e abre a página de ajustes. Controle a intensidade do preto e branco (0–100%), brilho (−100–100%), contraste (0–200%) e inversão. A prévia é automática; clique em **Salvar ação** para gravar por botão. **Restaurar filtros** recupera as cores originais. O arquivo de origem permanece intacto; imagens PNG/JPG/ICO importadas também aceitam os filtros.
-- **Liquid Glass:** opções independentes para o app e para o menu. É uma adaptação visual em Slint, com transparência, relevo e reflexos; não implementa as APIs Apple de refração de fundo. O fundo externo do anel permanece transparente.
-- **Submenus em modo segurar:** pause 300 ms sobre um submenu para entrar mantendo o acionador pressionado. Soltar encerra o gesto, inclusive sobre o centro ou posições vazias. O modo clique mantém navegação persistente.
+![Editor de aparência do menu com seletor de cores e prévia circular](docs/media/customization.png)
 
-## Configurar o acionamento
+*Captura real do app com uma configuração de demonstração. As cores e a transparência são ajustáveis.*
 
-Em **Preferências do app → Abrir menu com → Tecla do teclado**, escolha a tecla na lista e clique em **Aplicar preferências**. F13 é a seleção inicial, e a lista funciona mesmo quando a captura global está pausada. Também é possível usar **Capturar botão do mouse ou tecla (10 s)** e pressionar a tecla/botão desejado. O app identifica a origem e salva a escolha. Também é possível escolher Mouse/Teclado manualmente e aplicar preferências. A captura é de uma tecla individual (letras, funções F1–F24, navegação e modificadores), sem combinação de teclas. A tecla fica livre dentro do editor para permitir digitação; teste a abertura em outro aplicativo. Repetições de uma tecla mantida pressionada não reabrem o anel. Eventos enviados pelas próprias ações do Orbit são identificados para evitar recaptura.
+- **Liquid Glass opcional:** transparência, relevo e reflexos discretos, com controles separados para app e menu.
+- **4.312 ícones de biblioteca:** Bootstrap e Material, além dos SVGs do Voicemeeter e ChatGPT. Busca e uso offline.
+- **Ícone automático do programa:** selecione ou cole o caminho de um EXE/LNK na ação e o botão recebe o ícone dele.
+- **Filtros por botão:** preto e branco, brilho, contraste e inversão, com prévia e restauração da imagem original.
 
-## Compilar e executar
+<details>
+<summary><strong>Ver a biblioteca de ícones</strong></summary>
 
-Requer Windows 11 x64, Rust MSVC 1.95+, Build Tools C++ e Windows SDK.
+![Biblioteca de ícones do Orbit Axion com busca e prévia dos símbolos](docs/media/icon-library.png)
+
+</details>
+
+<details>
+<summary><strong>Ver as preferências do aplicativo</strong></summary>
+
+![Preferências do Orbit Axion com tema, tamanho e seleção de acionador](docs/media/preferences.png)
+
+</details>
+
+## Primeiros passos
+
+**Requisitos:** Windows 11 x64 e [Microsoft Visual C++ Runtime x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). O MSI atual não instala esse runtime.
+
+Use os pacotes de uma [release publicada](https://github.com/whoslucaxs/orbit-axion/releases), quando disponíveis. Enquanto não houver release, você pode [compilar o executável](docs/DEVELOPMENT.md) ou gerar um pacote pela execução manual do Actions com upload habilitado e cota disponível.
+
+1. Abra o Orbit Axion e entre em **Menus e ações**.
+2. Escolha uma das oito posições, defina a ação e clique em **Salvar ação**.
+3. Em **Preferências do app**, selecione o botão do mouse ou a tecla para abrir o menu e aplique as preferências.
+4. Volte a outro aplicativo e teste o acionador escolhido.
+
+**Ao atualizar:** escolha **Sair** na bandeja antes de abrir a versão nova. Fechar apenas a janela mantém o Orbit em execução.
+
+<details>
+<summary><strong>Como funcionam os controles?</strong></summary>
+
+| Controle | Comportamento |
+| --- | --- |
+| Segurar | Mantenha o acionador pressionado, aponte para a ação e solte. |
+| Clique | Abra com um clique e selecione a ação no menu. |
+| Submenus no modo segurar | Pare 300 ms sobre um submenu para entrar; soltar encerra o gesto. |
+| Roda sobre volume | Ajusta o volume; soltar após rolar não executa outra ação. |
+| Teclado | Escolha uma tecla individual na lista ou use a captura. Repetições não reabrem o menu. |
+| Dentro do editor | O acionador fica livre para permitir a configuração e a digitação. |
+
+Botões extras do fabricante precisam ser mapeados pelo driver para um botão padrão reconhecido pelo Windows. A captura aceita uma tecla individual, sem combinação de modificadores.
+
+</details>
+
+## Feito para ficar no seu computador
+
+As configurações ficam em `%LOCALAPPDATA%/OrbitAxion`, com gravação atômica, recuperação de arquivos inválidos e até 30 backups. Não há telemetria, sincronização em nuvem ou histórico de ações. A verificação de atualizações consulta o GitHub; instalação e inicialização com Windows são opcionais.
+
+A integração com Voicemeeter Potato exige uma instalação local em execução. A DLL proprietária da VB-Audio não acompanha o app.
+
+## Desenvolvimento
+
+Windows x64, Rust MSVC **1.95+**, Build Tools C++ e Windows SDK:
 
 ```powershell
 cargo build --locked --release -p orbit-axion --bins
-.	arget
-elease\orbit-axion.exe
+.\target\release\orbit-axion.exe
 ```
 
-Para forçar renderização software, defina `SLINT_BACKEND=winit-software` antes de executar. Normalmente o backend seleciona GPU com fallback disponível. O overlay mantém o centro no cursor, inclusive próximo às bordas: pode ficar parcialmente cortado.
+O [guia de desenvolvimento](docs/DEVELOPMENT.md) reúne comandos de teste, diagnósticos, geração do MSI, configuração do updater e organização do código. O CI sempre compila, testa e verifica o pacote; o upload de arquivos é opcional na execução manual para não depender da cota de artifacts em cada push.
 
-## Verificar
-
-```powershell
-cargo fmt --all -- --check
-cargo clippy --locked --workspace --all-targets -- -D warnings
-cargo test --locked --workspace --all-targets
-cargo run --locked -p orbit-axion --bin orbit-probe
-cargo run --locked -p orbit-axion --bin orbit-axion -- --smoke-test
-cargo run --locked -p orbit-axion --bin orbit-axion -- --ui-test
-```
-
-`orbit-probe` testa instalação/remoção de hooks sem interceptar e lê os provedores de áudio. `--smoke-test` verifica overlay real, foco, estilos e geometria; `--ui-test` verifica persistência dos valores ao criar a página de preferências e, na compilação debug, exercita o controlador com cinco botões, cliques atrasados e modo clique/segurar entre eventos reais da interface, sem instalar hooks nem injetar entrada. Ambos usam armazenamento isolado em target. Veja [docs/TEST_PLAN.md](docs/TEST_PLAN.md) para verificações de hardware ainda necessárias.
-
-## Instalador e atualizações
-
-```powershell
-python packaging/windows-msi/collect_notices.py
-python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.9-x64.msi 0.2.9
-```
-
-Empacotamento nativo MSI requer Python 3.9–3.12 no Windows (`msilib`). Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build extrai o CAB e compara os hashes dos arquivos incorporados; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.
-
-O updater consulta releases GitHub do repositório configurado, compara versões, verifica SHA-256 fornecido pelo GitHub e pede consentimento para instalar. Para repositório privado, `ORBIT_GITHUB_TOKEN` precisa permitir leitura de releases. O token não é salvo no JSON. Sem release publicada, o app informa indisponibilidade; não há atualização fictícia.
-
-## Código
-
-| Diretório | Responsabilidade |
+| Leia também | Conteúdo |
 | --- | --- |
-| crates/core | Configuração, validação, perfis, busca e geometria |
-| crates/windows-platform | Hooks, DPI, foco, overlay, serviços Win32 |
-| crates/audio | Core Audio e Voicemeeter Remote API |
-| crates/app | Editor, execução, workers, armazenamento, updater e bandeja |
-| ui | Interface Slint e tema |
-| packaging | MSI e inventário de dependências |
+| [Changelog](CHANGELOG.md) | Evolução das versões. |
+| [Validação local](docs/VALIDATION.md) | O que foi verificado em cada versão. |
+| [Plano de testes](docs/TEST_PLAN.md) | Cenários de hardware e validação manual. |
+| [Especificação](docs/SPEC.md) | Referência de produto. |
+| [Dependências e distribuição](THIRD_PARTY.md) | Bibliotecas, ícones e avisos de licença. |
 
-A [especificação original](docs/SPEC.md) é referência de produto, não um registro de testes aprovados. [FEASIBILITY.md](docs/FEASIBILITY.md) registra somente o laboratório 0.1.0 e foi superado por esta implementação. Consulte [THIRD_PARTY.md](THIRD_PARTY.md) antes de redistribuir.
+### Estado do projeto
 
-Limites de validação: jogos, processos elevados, monitores com DPI diferente, carga prolongada e acessibilidade exigem testes dedicados. Composição IME não é suportada na busca sem foco; nessa situação, use seleção pelo mouse. Nenhum comando destrutivo de sistema foi executado durante os testes de desenvolvimento.
+Versão **0.2.9**, em desenvolvimento. O efeito Liquid Glass é uma adaptação visual para Slint. Instalação, upgrade e rollback do MSI em VM, jogos, processos elevados, múltiplos DPIs e acessibilidade ainda precisam de validação dedicada. A busca sem foco não suporta composição IME; nesse caso, use a seleção pelo mouse.
+
+## Licença
+
+Código sob [GPL-3.0-only](LICENSE). Bibliotecas, fontes e marcas de terceiros mantêm suas próprias licenças. Este é um projeto independente, sem vínculo com a Logitech.
