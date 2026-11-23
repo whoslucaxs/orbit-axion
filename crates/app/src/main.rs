@@ -718,9 +718,19 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
                 Err(e) => e.into(),
             }),
             storage::Reply::Logs(text) => ui.set_technical_log(text.into()),
-            storage::Reply::Icon(result, menu, slot, executable) => match result {
-                Ok(path) => {
-                    if state.config.menus[state.menu].id == menu && state.slot == slot {
+            storage::Reply::Icon(result, menu, slot, executable, target) => {
+                if state.config.menus[state.menu].id != menu
+                    || state.slot != slot
+                    || target.as_ref().is_some_and(|target| {
+                        ui.get_target() != target.as_str()
+                            || ui.get_icon_source_target() != target.as_str()
+                    })
+                {
+                    continue;
+                }
+                ui.set_icon_loading(false);
+                match result {
+                    Ok(path) => {
                         ui.set_icon_name(path.into());
                         editor::set_icon_filters(
                             ui,
@@ -731,16 +741,19 @@ fn pump(state: &mut State, ui: &Editor, ring: &Ring) {
                         );
                         ui.set_icon_color("".into());
                         editor::preview_slot(ui, state);
-                        if executable {
+                        if executable && target.is_none() {
                             ui.set_page(6);
                         }
                         ui.set_status(
                             "Ícone importado. Ajuste os filtros e clique em Salvar ação.".into(),
                         );
                     }
+                    Err(e) => {
+                        ui.set_icon_source_target("".into());
+                        ui.set_status(e.into());
+                    }
                 }
-                Err(e) => ui.set_status(e.into()),
-            },
+            }
             storage::Reply::Imported(result) => match result {
                 Ok(config) => {
                     close(state, ring);

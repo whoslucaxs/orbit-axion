@@ -122,6 +122,8 @@ fn load_slot(ui: &Editor, s: &mut State) {
     ui.set_confirm(false);
     ui.set_icon_name("".into());
     ui.set_icon_is_file(false);
+    ui.set_icon_loading(false);
+    ui.set_icon_source_target("".into());
     set_icon_filters(ui, IconFilters::default());
     ui.set_icon_color("".into());
     ui.set_button_background("".into());
@@ -449,6 +451,36 @@ pub fn preview_slot(u: &Editor, s: &mut State) {
     color_picker::update_swatches(u);
     u.set_items(items(&slots, &mut s.icons));
 }
+pub fn auto_target_icon(ui: &Editor, state: &mut State) {
+    let target = ui.get_target().to_string();
+    if ui.get_icon_source_target() == target {
+        return;
+    }
+    ui.set_icon_source_target("".into());
+    ui.set_icon_loading(false);
+    let path = std::path::Path::new(target.trim());
+    if !matches!(ui.get_action_type(), 1 | 2)
+        || !path.is_file()
+        || !path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exe") || ext.eq_ignore_ascii_case("lnk"))
+    {
+        return;
+    }
+    match state.writer.request(storage::Job::Icon(
+        path.to_path_buf(),
+        state.config.menus[state.menu].id.clone(),
+        state.slot,
+        Some(target.clone()),
+    )) {
+        Ok(()) => {
+            ui.set_icon_source_target(target.into());
+            ui.set_icon_loading(true);
+            ui.set_status("Extraindo o ícone do executável…".into());
+        }
+        Err(error) => ui.set_status(error.into()),
+    }
+}
 fn import_icon(ui: &Editor, state: &mut State, executable: bool) {
     let dialog = if executable {
         rfd::FileDialog::new().add_filter("Executáveis e atalhos", &["exe", "lnk"])
@@ -456,10 +488,13 @@ fn import_icon(ui: &Editor, state: &mut State, executable: bool) {
         rfd::FileDialog::new().add_filter("Imagens de ícone", &["png", "jpg", "jpeg", "ico"])
     };
     if let Some(path) = dialog.pick_file() {
+        ui.set_icon_source_target("".into());
+        ui.set_icon_loading(false);
         let result = state.writer.request(storage::Job::Icon(
             path,
             state.config.menus[state.menu].id.clone(),
             state.slot,
+            None,
         ));
         ui.set_status(match result {
             Ok(()) => "Importando ícone…".into(),
@@ -593,6 +628,10 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         }
     });
     bind!(on_save_slot, |u, s, _r| {
+        if u.get_icon_loading() {
+            u.set_status("Aguarde a extração do ícone…".into());
+            return;
+        }
         match save_slot(&u, s) {
             Ok(()) => {
                 persist(&u, s);
@@ -605,9 +644,13 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         s.audio.request(Request::Devices);
         s.audio.request(Request::Labels);
     });
-    bind!(on_browse_target, |u, _s, _r| {
+    bind!(on_auto_target_icon, |u, s, _r| {
+        auto_target_icon(&u, s);
+    });
+    bind!(on_browse_target, |u, s, _r| {
         if let Some(path) = rfd::FileDialog::new().pick_file() {
             u.set_target(path.to_string_lossy().into_owned().into());
+            auto_target_icon(&u, s);
         }
     });
     bind!(on_import_icon, |u, s, _r| {
@@ -770,6 +813,8 @@ pub fn connect(ui: &Editor, ring: &Ring, tray: &Tray, state: Rc<RefCell<State>>)
         let weak = ui.as_weak();
         ui.on_choose_icon(move |id| {
             if let Some(ui) = weak.upgrade() {
+                ui.set_icon_source_target("".into());
+                ui.set_icon_loading(false);
                 ui.set_icon_name(id);
                 ui.set_page(0);
                 ui.invoke_preview_slot();

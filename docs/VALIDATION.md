@@ -1,3 +1,13 @@
+# Verificações locais — 0.2.8 — 2026-11-23
+
+- 26 testes unitários passaram; Clippy e formatador sem avisos.
+- UI test usa o mesmo callback da seleção do destino para importar automaticamente o ícone real de um executável.
+- Verificados indicador de extração, aplicação à prévia sem sair da ação, filtros ajustáveis e persistência após salvar e trocar de botão.
+- Regressões anteriores de submenu e acionamento passaram.
+- Instalação/upgrade/rollback do MSI em VM continuam pendentes.
+
+---
+
 # Verificações locais — 0.2.7 — 2026-11-23
 
 - 26 testes unitários: filtros preservam alpha e cores sem ajustes, escala de cinza, brilho, contraste, inversão, limites e compatibilidade com configurações antigas.

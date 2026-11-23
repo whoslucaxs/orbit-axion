@@ -7,18 +7,13 @@ pub fn run(ui: slint::Weak<Editor>, ring: slint::Weak<Ring>, state: Rc<RefCell<S
     };
     if case == 14 {
         close(&mut state.borrow_mut(), &overlay);
-        {
-            let s = state.borrow();
-            let executable = std::path::PathBuf::from(std::env::var_os("WINDIR").unwrap())
-                .join("System32/notepad.exe");
-            s.writer
-                .request(storage::Job::Icon(
-                    executable,
-                    s.config.menus[s.menu].id.clone(),
-                    s.slot,
-                ))
-                .unwrap();
-        }
+        let executable = std::path::PathBuf::from(std::env::var_os("WINDIR").unwrap())
+            .join("System32/notepad.exe");
+        editor.set_action_type(1);
+        editor.set_page(0);
+        editor.set_target(executable.to_string_lossy().into_owned().into());
+        editor.invoke_auto_target_icon();
+        assert!(editor.get_icon_loading());
         wait_icon_filter(ui, ring, state, None, 0);
         return;
     }
@@ -483,11 +478,17 @@ fn wait_icon_filter(
             let overlay = ring.upgrade().unwrap();
             submenu_regression(&editor, &overlay, &mut state.borrow_mut());
             println!(
-                "ICON FILTERS OK: executable extraction, grayscale, live filters, source preservation and per-slot persistence"
+                "ICON FILTERS OK: automatic executable icon, grayscale, live filters, source preservation and per-slot persistence"
             );
             println!("INTERACTION OK: mouse buttons, keyboard triggers and submenu release");
             let _ = slint::quit_event_loop();
         } else {
+            assert!(!editor.get_icon_loading());
+            assert_eq!(
+                editor.get_page(),
+                0,
+                "automatic icon import changed the action editor page"
+            );
             assert_eq!(editor.get_icon_grayscale(), 100.0);
             assert!(
                 pixels

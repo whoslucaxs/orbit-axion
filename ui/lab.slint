@@ -39,6 +39,8 @@ export global MenuInk {
 component Pill inherits Rectangle {
     in property <string> text;
     in property <bool> accent: false;
+    in property <bool> enabled: true;
+    opacity: root.enabled ? 1 : 0.5;
     callback clicked;
     min-height: 36px; min-width: label.preferred-width + 28px;
     border-radius: 10px; border-width: 1px;
@@ -46,8 +48,8 @@ component Pill inherits Rectangle {
     background: touch.pressed ? Ink.accent.with-alpha(0.33) : touch.has-hover ? Ink.accent.with-alpha(0.14) : accent ? Ink.accent.with-alpha(0.19) : Ink.liquid-glass ? @linear-gradient(130deg, Ink.surface.brighter(18%).with-alpha(0.8), Ink.surface.with-alpha(0.35)) : Ink.surface;
     animate background { duration: 110ms; }
     label := Text { text: root.text; color: root.accent ? Ink.accent : Ink.text; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
-    touch := TouchArea { clicked => { root.clicked(); } }
-    accessible-role: button; accessible-label: root.text; accessible-action-default => { root.clicked(); }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+    accessible-role: button; accessible-label: root.text; accessible-action-default => { if root.enabled { root.clicked(); } }
 }
 component ColorControl inherits Rectangle {
     in property<color> value;
@@ -198,6 +200,8 @@ export component Editor inherits Window {
     in-out property <bool> elevated: false;
     in-out property <int> submenu-index: 0;
     in-out property <string> icon-name;
+    in-out property <bool> icon-loading: false;
+    in-out property <string> icon-source-target;
     in-out property <bool> icon-is-file: false;
     in-out property <float> icon-grayscale: 0;
     in-out property <float> icon-brightness: 0;
@@ -312,6 +316,7 @@ export component Editor inherits Window {
     callback save-slot;
     callback refresh-audio;
     callback browse-target;
+    callback auto-target-icon;
     callback import-icon;
     callback import-executable-icon;
     callback new-profile;
@@ -384,7 +389,7 @@ export component Editor inherits Window {
                         LineEdit { text <=> root.slot-name; placeholder-text: root.en ? "Action name" : "Nome da ação"; edited=>{root.preview-slot();} }
                         ComboBox { model: root.en ? ["Empty", "Open app / command", "Website / file / folder", "Keyboard shortcut", "Insert text", "Media", "Window", "System", "Volume", "Submenu", "Macro", "Settings"] : ["Vazia", "Aplicativo / comando", "Site / arquivo / pasta", "Atalho de teclado", "Inserir texto", "Mídia", "Janela", "Sistema", "Volume", "Submenu", "Macro", "Configurações"]; current-index: root.action-type; selected(value) => { root.action-type = self.current-index; } }
                         if root.action-type == 1 || root.action-type == 2: VerticalBox { padding: 0px; spacing: 7px;
-                            LineEdit { text <=> root.target; placeholder-text: root.en ? "Path or URL" : "Caminho ou URL"; }
+                            LineEdit { text <=> root.target; edited(value) => { root.auto-target-icon(); } placeholder-text: root.en ? "Path or URL" : "Caminho ou URL"; }
                             Pill { text: root.en ? "Browse…" : "Selecionar…"; clicked => { root.browse-target(); } }
                             if root.action-type == 1: LineEdit { text <=> root.arguments; placeholder-text: root.en ? "Arguments separated by |" : "Argumentos separados por |"; }
                             if root.action-type == 1: CheckBox { text: root.en ? "Run elevated (UAC)" : "Executar elevado (UAC)"; checked <=> root.elevated; }
@@ -426,7 +431,7 @@ export component Editor inherits Window {
                         Caption { text: root.en ? "This button border" : "Borda deste botão"; }
                         ColorControl { en: root.en; value: root.button-border-preview; pick => { root.pick-color(202); } alpha-changed(v) => { root.color-opacity(202,v); } reset => { root.reset-color(202); } }
                         CheckBox { text: root.en ? "Confirm before executing" : "Confirmar antes de executar"; checked <=> root.confirm; }
-                        Pill { text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
+                        Pill { enabled: !root.icon-loading; text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
                         if root.action-type == 1: Caption { text: root.en ? "Commands and scripts can modify your files and system. Review the target and arguments." : "Comandos e scripts podem alterar arquivos e o sistema. Revise o destino e os argumentos."; wrap: word-wrap; }
                         Caption { text: root.en ? "Text and commands are stored locally, without encryption." : "Textos e comandos ficam salvos localmente, sem criptografia."; wrap: word-wrap; }
                     } }
@@ -586,7 +591,7 @@ export component Editor inherits Window {
                     HorizontalBox { padding: 0px;
                         Pill { text: root.en ? "Reset filters" : "Restaurar filtros"; clicked => { root.icon-grayscale = 0; root.icon-brightness = 0; root.icon-contrast = 100; root.icon-invert = false; root.preview-slot(); } }
                         Pill { text: root.en ? "Back to action" : "Voltar à ação"; clicked => { root.page = 0; } }
-                        Pill { text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
+                        Pill { enabled: !root.icon-loading; text: root.en ? "Save action" : "Salvar ação"; accent: true; clicked => { root.save-slot(); } }
                     }
                 }
             }

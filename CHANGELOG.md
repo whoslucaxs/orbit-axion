@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.8 — ícone automático do programa — 2026-11-23
+
+- Selecionar ou colar o caminho de um EXE/LNK na ação aplica automaticamente seu ícone ao botão, mantendo os filtros ajustáveis.
+- Extração em segundo plano com salvamento habilitado após conclusão e descarte de resultados de destinos anteriores.
+
 ## 0.2.7 — ícones de executáveis e filtros — 2026-11-23
 
 - Botão próprio para extrair ícones de executáveis e atalhos; abre os ajustes com preto e branco em 100%.
