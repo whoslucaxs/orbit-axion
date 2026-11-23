@@ -51,5 +51,9 @@ $orbitFlags = @('--latest')
 if ($orbitVersion.Contains('-')) { $orbitFlags = @('--prerelease', '--latest=false') }
 gh release edit $orbitTag --draft=false @orbitFlags
 if ($LASTEXITCODE -ne 0) { throw 'Cannot publish verified release' }
+$orbitPublished = gh api "repos/$env:GH_REPO/releases/tags/$orbitTag"
+if ($LASTEXITCODE -ne 0) { throw 'Cannot confirm published release' }
+$orbitPublished = $orbitPublished | ConvertFrom-Json
+if ($orbitPublished.draft -or $orbitPublished.tag_name -ne $orbitTag) { throw 'Release is not published' }
 "Published $orbitTag with five verified assets." | Write-Output
-"Published release: $($orbitDraft.html_url)" >> $env:GITHUB_STEP_SUMMARY
+"Published release: $($orbitPublished.html_url)" >> $env:GITHUB_STEP_SUMMARY
