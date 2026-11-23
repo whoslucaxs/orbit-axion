@@ -16,6 +16,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/whoslucaxs/orbit-axion/releases/tag/v0.2.9">Baixar v0.2.9</a> ·
   <a href="#primeiros-passos">Primeiros passos</a> ·
   <a href="#sua-aparência-seu-menu">Personalização</a> ·
   <a href="docs/DEVELOPMENT.md">Compilar e testar</a> ·
@@ -70,7 +71,13 @@ O aplicativo e o menu têm paletas independentes. Escolha cores com o seletor vi
 
 **Requisitos:** Windows 11 x64 e [Microsoft Visual C++ Runtime x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). O MSI atual não instala esse runtime.
 
-Use os pacotes de uma [release publicada](https://github.com/whoslucaxs/orbit-axion/releases), quando disponíveis. Enquanto não houver release, você pode [compilar o executável](docs/DEVELOPMENT.md) ou gerar um pacote pela execução manual do Actions com upload habilitado e cota disponível.
+A **[v0.2.9 está disponível nas Releases](https://github.com/whoslucaxs/orbit-axion/releases/tag/v0.2.9)**:
+
+- **[Baixar instalador MSI](https://github.com/whoslucaxs/orbit-axion/releases/download/v0.2.9/OrbitAxion-0.2.9-x64.msi)** — instalação com atalho no Windows.
+- **[Baixar executável EXE](https://github.com/whoslucaxs/orbit-axion/releases/download/v0.2.9/OrbitAxion-0.2.9.exe)** — execução direta.
+- [Checksums SHA-256](https://github.com/whoslucaxs/orbit-axion/releases/download/v0.2.9/SHA256SUMS-0.2.9.txt), avisos e licença acompanham a release.
+
+O acesso aos downloads de um repositório privado exige login no GitHub com permissão de leitura. Para gerar seus próprios pacotes, consulte o [guia de desenvolvimento](docs/DEVELOPMENT.md).
 
 1. Abra o Orbit Axion e entre em **Menus e ações**.
 2. Escolha uma das oito posições, defina a ação e clique em **Salvar ação**.
