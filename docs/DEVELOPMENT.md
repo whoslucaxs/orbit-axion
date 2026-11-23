@@ -28,7 +28,8 @@ cargo run --locked -p orbit-axion --bin orbit-axion -- --ui-test
 
 ```powershell
 python packaging/windows-msi/collect_notices.py
-python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe dist/OrbitAxion-0.2.9-x64.msi 0.2.9
+$orbitVersion = python -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])"
+python packaging/windows-msi/build_msi.py target/release/orbit-axion.exe "dist/OrbitAxion-$orbitVersion-x64.msi" $orbitVersion
 ```
 
 Empacotamento nativo MSI requer Python 3.9–3.12 no Windows (`msilib`). Inclui escolha por usuário/máquina, upgrade transacional e remoção opcional dos dados no desinstalador interativo. Instalação silenciosa preserva dados. O build extrai o CAB e compara os hashes dos arquivos incorporados; instalação, upgrade e rollback precisam ser exercitados em VM antes de distribuição ampla.
